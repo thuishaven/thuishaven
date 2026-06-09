@@ -4,7 +4,7 @@ title: "Date picker for sharing with friends"
 version: 1
 status: experimental
 category: collaboration
-tags: [scheduling, polls, no-account-needed, rallly]
+tags: [scheduling, polls, calendar, dates, no-account-needed, rallly]
 maintainer: hiddevh
 
 problem: >

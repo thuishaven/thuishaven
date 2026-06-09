@@ -1,0 +1,19 @@
+# Cloudflare Workers config for the hosted MCP endpoint.
+# Deployed via `wrangler deploy` from CI (Phase 4); requires
+# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment.
+#
+# Run `npm run build:bundle` first — the Worker imports src/patterns.bundle.json.
+
+name = "thuishaven-mcp"
+main = "src/workers.ts"
+compatibility_date = "2026-06-09"
+
+# Custom domain: Cloudflare creates the DNS record and certificate on deploy.
+# (The thuishaven.dev zone must be active on the Cloudflare account.)
+[[routes]]
+pattern = "mcp.thuishaven.dev"
+custom_domain = true
+
+# No telemetry, ever — keep Workers Logs / observability off.
+[observability]
+enabled = false

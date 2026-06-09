@@ -1,0 +1,34 @@
+{
+  "name": "@thuishaven/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing Thuishaven self-hosting patterns",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:bundle": "tsx scripts/build-patterns-bundle.ts",
+    "typecheck": "npm run build:bundle && tsc --noEmit && tsc -p tsconfig.workers.json",
+    "test": "vitest run",
+    "start:http": "tsx src/node-http.ts",
+    "start:stdio": "tsx src/node-stdio.ts",
+    "dev:workers": "npm run build:bundle && wrangler dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.17.1",
+    "gray-matter": "^4.0.3",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260601.0",
+    "@types/node": "^22.19.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

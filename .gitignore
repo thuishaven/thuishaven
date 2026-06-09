@@ -1,3 +1,7 @@
 node_modules/
 *.log
 .DS_Store
+dist/
+.wrangler/
+# Generated at build time by mcp-server/scripts/build-patterns-bundle.ts
+mcp-server/src/patterns.bundle.json
