@@ -1,0 +1,18 @@
+{
+  "name": "thuishaven",
+  "private": true,
+  "description": "Community-driven library of opinionated, agent-readable self-hosting patterns",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "validate": "tsx scripts/validate-patterns.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.20",
+    "ajv": "^8.17.1",
+    "gray-matter": "^4.0.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

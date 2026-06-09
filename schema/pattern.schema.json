@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thuishaven.dev/schema/pattern.schema.json",
+  "title": "Thuishaven Pattern Frontmatter",
+  "description": "Schema for the YAML frontmatter of every pattern file in patterns/",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "version",
+    "status",
+    "category",
+    "tags",
+    "maintainer",
+    "problem",
+    "recommendation",
+    "alternatives",
+    "prerequisites",
+    "estimated_time_minutes",
+    "gotchas",
+    "related"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique pattern identifier, kebab-case, must match the filename without .md",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title describing the use case, not the app",
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "description": "Pattern version, bumped on breaking changes to the recipe",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "description": "Lifecycle status of the pattern",
+      "enum": ["stable", "experimental", "deprecated"]
+    },
+    "category": {
+      "type": "string",
+      "description": "Exactly one category from the allowed set",
+      "enum": [
+        "bootstrap",
+        "productivity",
+        "collaboration",
+        "media",
+        "security",
+        "monitoring",
+        "family"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Free-form lowercase tags used for search and filtering",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "maintainer": {
+      "type": "string",
+      "description": "GitHub username of the person maintaining this pattern",
+      "minLength": 1
+    },
+    "problem": {
+      "type": "string",
+      "description": "Short description of the problem this pattern solves",
+      "minLength": 1
+    },
+    "recommendation": {
+      "type": "object",
+      "description": "What this pattern recommends",
+      "additionalProperties": false,
+      "required": ["app", "app_source", "deploy_target", "exposure"],
+      "properties": {
+        "app": {
+          "type": "string",
+          "description": "Name of the recommended application",
+          "minLength": 1
+        },
+        "app_source": {
+          "type": "string",
+          "description": "URL of the application's source repository or homepage",
+          "pattern": "^https?://"
+        },
+        "deploy_target": {
+          "type": "string",
+          "description": "Recommended deployment platform",
+          "enum": ["dokploy", "docker-compose", "coolify", "k8s"]
+        },
+        "exposure": {
+          "type": "string",
+          "description": "Recommended exposure model",
+          "enum": ["public-domain", "tailnet", "cloudflare-tunnel", "local-only"]
+        }
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "description": "Alternatives that were considered and why they were not chosen",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "reason_not_chosen"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_not_chosen": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "What the user needs before starting, as kebab-case identifiers",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "estimated_time_minutes": {
+      "type": "integer",
+      "description": "Estimated time to follow this pattern from scratch, in minutes",
+      "minimum": 1
+    },
+    "gotchas": {
+      "type": "array",
+      "description": "Short list of things that commonly go wrong",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "related": {
+      "type": "array",
+      "description": "IDs of related patterns the user might want next",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true
+    }
+  }
+}
