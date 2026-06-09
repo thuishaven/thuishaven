@@ -44,7 +44,7 @@ New categories can be proposed via PR against the schema, with justification.
 
 ## How reviews work (maintainer-review model)
 
-Every PR is reviewed by a maintainer before merge — currently that's [@hiddevdploeg](https://github.com/hiddevdploeg). CI catches mechanical errors (schema violations, broken related-pattern references) before a human looks at it; the human review is about judgment: Is the recommendation sound? Are the alternatives fairly considered? Are the steps complete and honest about gotchas?
+Every PR is reviewed by a maintainer before merge — currently that's [@hiddevh](https://github.com/hiddevh). CI catches mechanical errors (schema violations, broken related-pattern references) before a human looks at it; the human review is about judgment: Is the recommendation sound? Are the alternatives fairly considered? Are the steps complete and honest about gotchas?
 
 Expect questions about *why* you chose the app, not just *how* to install it. Recommendation criteria we apply:
 

@@ -5,7 +5,7 @@ version: 1
 status: experimental
 category: bootstrap
 tags: [dokploy, docker, traefik, tailscale, lets-encrypt, server-setup]
-maintainer: hiddevdploeg
+maintainer: hiddevh
 
 problem: >
   You have (or just rented) an Ubuntu server and want a solid foundation for

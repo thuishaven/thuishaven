@@ -5,7 +5,7 @@ version: 1
 status: experimental
 category: security
 tags: [passwords, family, bitwarden, vaultwarden, password-manager]
-maintainer: hiddevdploeg
+maintainer: hiddevh
 
 problem: >
   You pay for a family password manager subscription (1Password, Bitwarden

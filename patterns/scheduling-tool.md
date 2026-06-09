@@ -5,7 +5,7 @@ version: 1
 status: experimental
 category: collaboration
 tags: [scheduling, polls, no-account-needed, rallly]
-maintainer: hiddevdploeg
+maintainer: hiddevh
 
 problem: >
   You want to schedule a date with friends or family without using
