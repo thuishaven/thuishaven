@@ -100,10 +100,10 @@ Custom patterns must validate against [`../schema/pattern.schema.json`](../schem
 
 ## Deployment (production, Phase 4)
 
-`wrangler deploy` publishes to Cloudflare Workers with the custom domain `mcp.thuishaven.dev` (configured in [`wrangler.toml`](wrangler.toml)). The deploy pipeline runs `npm run build:bundle` first; a deploy is the pattern refresh — no runtime fetching.
+`wrangler deploy` publishes to Cloudflare Workers with the custom domain `mcp.thuishaven.dev` (configured in [`wrangler.jsonc`](wrangler.jsonc)). The deploy pipeline runs `npm run build:bundle` first; a deploy is the pattern refresh — no runtime fetching.
 
 ## Design notes
 
 - **Stateless by construction.** The SDK's stateless Streamable HTTP transport is single-use; `http-handler.ts` builds a fresh `McpServer` + transport per POST. Responses are plain JSON (`enableJsonResponse`), GET returns 405 (no server-initiated streams), no sessions, no `MCP-Session-Id`.
 - **One handler, three runtimes.** `workers.ts` passes the Workers `Request` straight to `handleMcpRequest`; `node-http.ts` bridges Node's `IncomingMessage`/`ServerResponse` to the same function. The MCP SDK's `WebStandardStreamableHTTPServerTransport` does the protocol work.
-- **No telemetry.** No analytics, no logging of request contents, Workers observability explicitly disabled in `wrangler.toml`.
+- **No telemetry.** No analytics, no logging of request contents, Workers observability explicitly disabled in `wrangler.jsonc`.
