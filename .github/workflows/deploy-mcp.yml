@@ -1,4 +1,4 @@
-name: Deploy website
+name: Deploy MCP server
 
 # Manual trigger only for now — switch to the push trigger below once the
 # Cloudflare account is set up and CI deployments are deliberately enabled
@@ -7,20 +7,20 @@ name: Deploy website
 #   push:
 #     branches: [main]
 #     paths:
-#       - "website/**"
+#       - "mcp-server/**"
 #       - "patterns/**"
-#       - "CONTRIBUTING.md"
-#       - ".github/workflows/deploy-site.yml"
+#       - "schema/**"
+#       - ".github/workflows/deploy-mcp.yml"
 on:
   workflow_dispatch:
 
 jobs:
   deploy:
-    name: Build and deploy to Cloudflare
+    name: Test, bundle, and deploy to Cloudflare Workers
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: website
+        working-directory: mcp-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,15 +30,18 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: mcp-server/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Typecheck (builds and validates the patterns bundle)
+        run: npm run typecheck
 
-      - name: Deploy (Workers static assets)
+      - name: Run tests
+        run: npm test
+
+      - name: Deploy Worker
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
