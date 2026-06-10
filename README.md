@@ -1,22 +1,50 @@
 # Thuishaven
 
+[![Validate](https://github.com/thuishaven/thuishaven/actions/workflows/validate.yml/badge.svg)](https://github.com/thuishaven/thuishaven/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Patterns](https://img.shields.io/badge/patterns-3-14b8a6.svg)](patterns/)
+[![Website](https://img.shields.io/badge/website-thuishaven.dev-0f172a.svg)](https://thuishaven.dev)
+
 Thuishaven (Dutch for "home port") is a community-driven library of opinionated, agent-readable patterns for self-hosting. Each pattern is an end-to-end recipe for a common use case — it names one recommended app, one deploy target, one exposure model, and gives exact steps plus known gotchas. Not a catalog of every self-hostable app (that's [awesome-selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted)'s job), but a playbook: opinionated glue that ties Dokploy, Tailscale, Cloudflare, and the apps themselves into something you — or your coding agent — can follow without spending the weekend on config.
 
-- **Website**: [thuishaven.dev](https://thuishaven.dev) *(coming soon)*
-- **Hosted MCP**: `https://mcp.thuishaven.dev` *(coming soon)*
+- **Website**: [thuishaven.dev](https://thuishaven.dev) — browse patterns, human-friendly
+- **Hosted MCP**: `https://mcp.thuishaven.dev/mcp` — the same patterns, agent-friendly
 - **License**: MIT. No analytics, no telemetry, no paid tier.
 
-## How you'll use it
+> Status: pre-launch. The hosted endpoints go live after the patterns pass end-to-end validation ([docs/deployment.md](docs/deployment.md)).
 
-There are two ways to consume the patterns; both serve the same markdown files in this repo.
+## Quick start: use the hosted MCP
 
-**Hosted MCP (easiest).** Point Claude Code, Claude Desktop, or any MCP-capable agent at the hosted endpoint at `mcp.thuishaven.dev`. The agent can then list patterns, fetch full recipes, and match free-text problems ("I want a date picker my friends can use") to the right pattern. Stateless, free, nothing to run.
+**Claude Code:**
 
-**Self-host the MCP.** Run the published Docker image on your own infrastructure, or run the server from source with stdio transport for direct Claude Desktop/Code integration. Same code, same patterns — you can even point it at a fork with your own private patterns.
+```bash
+claude mcp add --transport http thuishaven https://mcp.thuishaven.dev/mcp
+```
 
-Both paths ship after the MCP server lands (Phase 2). Right now this repo contains the patterns themselves, the frontmatter schema, and the validation tooling.
+Or commit it to a project's `.mcp.json`:
 
-You can also just read the patterns: they're plain markdown in [`patterns/`](patterns/).
+```json
+{
+  "mcpServers": {
+    "thuishaven": { "type": "http", "url": "https://mcp.thuishaven.dev/mcp" }
+  }
+}
+```
+
+**Claude Desktop / claude.ai**: Settings → Connectors → **Add custom connector** → `https://mcp.thuishaven.dev/mcp`.
+
+Then ask your agent things like *"find me a pattern for scheduling dates with friends, and follow it on my server."* Five tools are exposed: `list_patterns`, `get_pattern`, `find_pattern_for_problem`, `list_categories`, `get_setup_guide`.
+
+## Quick start: self-host the MCP
+
+Run the published image (HTTP on :3000, or stdio for direct Claude Desktop/Code integration):
+
+```bash
+docker run -p 3000:3000 ghcr.io/thuishaven/thuishaven-mcp
+claude mcp add --transport http thuishaven http://localhost:3000/mcp
+```
+
+Or from source: `cd mcp-server && npm install && npm run start:stdio` (or `start:http`). You can point any self-hosted instance at your own patterns fork via `PATTERNS_DIR`. Details, including the stdio Docker variant and Claude Desktop config snippets: [mcp-server/README.md](mcp-server/README.md).
 
 ## Patterns
 
@@ -26,19 +54,20 @@ You can also just read the patterns: they're plain markdown in [`patterns/`](pat
 | [scheduling-tool](patterns/scheduling-tool.md) | Date picker for sharing with friends | experimental |
 | [vaultwarden-family](patterns/vaultwarden-family.md) | Move your family off 1Password to self-hosted Vaultwarden | experimental |
 
-`experimental` means the pattern is written but not yet validated end-to-end by a maintainer; `stable` means it has been. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full lifecycle.
+`experimental` means the pattern is written but not yet validated end-to-end by a maintainer; `stable` means it has been. Patterns are plain markdown with structured frontmatter — readable here, rendered at [thuishaven.dev/patterns](https://thuishaven.dev/patterns/), served over MCP.
 
 ## Repository layout
 
 ```
-patterns/    one markdown file per pattern, YAML frontmatter + body
+patterns/    one markdown file per pattern, YAML frontmatter + body (the source of truth)
 schema/      JSON Schema the frontmatter is validated against
 scripts/     validate-patterns.ts — the CI validation CLI
-mcp-server/  MCP server (Phase 2, not yet built)
-website/     Astro static site (Phase 3, not yet built)
+mcp-server/  MCP server: Cloudflare Workers + Node HTTP (Docker) + Node stdio
+website/     Astro static site reading ../patterns directly
+docs/        deployment runbook
 ```
 
-Validate locally:
+Validate patterns locally:
 
 ```bash
 npm install
@@ -47,4 +76,4 @@ npx tsx scripts/validate-patterns.ts
 
 ## Contributing
 
-Patterns are contributed via pull request and reviewed by a maintainer. The bar: you have personally run the pattern end-to-end, and you can explain why you chose this app over the alternatives. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Patterns are contributed via pull request and reviewed by a maintainer. The bar: you have personally run the pattern end-to-end, and you can explain why you chose this app over the alternatives. New patterns start as `experimental` and become `stable` after maintainer validation. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full process, the quality criteria, and the recommendation philosophy.
