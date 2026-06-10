@@ -1,0 +1,37 @@
+name: Deploy website
+
+# Manual trigger only for now — switch to `push: branches: [main]` (with a
+# paths filter on website/** and patterns/**) once the Cloudflare account is
+# set up and CI deployments are deliberately enabled (Phase 4).
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and deploy to Cloudflare
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy (Workers static assets)
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

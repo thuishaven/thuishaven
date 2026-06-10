@@ -1,0 +1,21 @@
+---
+import { getEntry, render } from "astro:content";
+import Base from "../layouts/Base.astro";
+
+const doc = await getEntry("docs", "contributing");
+if (!doc) {
+  throw new Error("CONTRIBUTING.md not found in the docs collection");
+}
+const { Content } = await render(doc);
+---
+
+<Base
+  title="Contributing — Thuishaven"
+  description="How to contribute a pattern to Thuishaven: the quality bar, the run-it-yourself declaration, and the experimental-to-stable lifecycle."
+>
+  <article
+    class="prose prose-slate mx-auto max-w-3xl dark:prose-invert prose-headings:tracking-tight prose-a:decoration-slate-400 prose-a:underline-offset-2"
+  >
+    <Content />
+  </article>
+</Base>

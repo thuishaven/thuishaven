@@ -1,0 +1,98 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import PatternCard from "../../components/PatternCard.astro";
+import { CATEGORIES, STATUSES } from "../../content.config";
+
+const patterns = (await getCollection("patterns")).sort((a, b) =>
+  a.id.localeCompare(b.id),
+);
+
+const allTags = [...new Set(patterns.flatMap((p) => p.data.tags))].sort();
+const usedCategories = CATEGORIES.filter((c) =>
+  patterns.some((p) => p.data.category === c),
+);
+const usedStatuses = STATUSES.filter((s) =>
+  patterns.some((p) => p.data.status === s),
+);
+
+const selectClass =
+  "rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
+---
+
+<Base
+  title="Patterns — Thuishaven"
+  description="Browse all Thuishaven self-hosting patterns: filterable by category, status, and tag."
+>
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+    Patterns
+  </h1>
+  <p class="mt-3 max-w-2xl text-slate-600 dark:text-slate-400">
+    Every pattern is an end-to-end recipe: one recommended app, one deploy
+    target, one exposure model. <span class="font-medium">experimental</span> means
+    written but not yet validated end-to-end by a maintainer;
+    <span class="font-medium">stable</span> means it has been.
+  </p>
+
+  <form class="mt-8 flex flex-wrap items-center gap-3" id="filters">
+    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+      Category
+      <select name="category" class={selectClass}>
+        <option value="">all</option>
+        {usedCategories.map((c) => <option value={c}>{c}</option>)}
+      </select>
+    </label>
+    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+      Status
+      <select name="status" class={selectClass}>
+        <option value="">all</option>
+        {usedStatuses.map((s) => <option value={s}>{s}</option>)}
+      </select>
+    </label>
+    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+      Tag
+      <select name="tag" class={selectClass}>
+        <option value="">all</option>
+        {allTags.map((t) => <option value={t}>{t}</option>)}
+      </select>
+    </label>
+  </form>
+
+  <div class="mt-6 grid gap-4 sm:grid-cols-2" id="pattern-grid">
+    {patterns.map((pattern) => <PatternCard pattern={pattern} />)}
+  </div>
+  <p class="mt-6 hidden text-slate-500 dark:text-slate-400" id="no-results">
+    No patterns match these filters. <a
+      href="https://github.com/thuishaven/thuishaven/issues/new?template=new-pattern.md"
+      class="underline decoration-slate-400 underline-offset-2">Request one?</a
+    >
+  </p>
+
+  <script is:inline>
+    // Tiny dependency-free filtering over data attributes set at build time.
+    const form = document.getElementById("filters");
+    const cards = Array.from(
+      document.querySelectorAll("#pattern-grid > a[data-category]"),
+    );
+    const noResults = document.getElementById("no-results");
+
+    function applyFilters() {
+      const data = new FormData(form);
+      const category = data.get("category");
+      const status = data.get("status");
+      const tag = data.get("tag");
+      let visible = 0;
+      for (const card of cards) {
+        const show =
+          (!category || card.dataset.category === category) &&
+          (!status || card.dataset.status === status) &&
+          (!tag || card.dataset.tags.split(" ").includes(tag));
+        card.style.display = show ? "" : "none";
+        if (show) visible++;
+      }
+      noResults.classList.toggle("hidden", visible > 0);
+    }
+
+    form.addEventListener("change", applyFilters);
+  </script>
+</Base>

@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Manual dark mode via data attribute; default theme is dark (set in Base layout). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  /* Harbor accent — one restrained teal, used sparingly. System fonts only. */
+  --color-harbor-50: oklch(0.984 0.014 180.72);
+  --color-harbor-300: oklch(0.855 0.108 182.5);
+  --color-harbor-400: oklch(0.777 0.124 181.91);
+  --color-harbor-500: oklch(0.704 0.117 182.5);
+  --color-harbor-600: oklch(0.6 0.104 184.7);
+  --color-harbor-700: oklch(0.511 0.087 186);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Rendered markdown: keep code blocks readable at small sizes. */
+.prose pre {
+  font-size: 0.85em;
+}

@@ -3,5 +3,6 @@ node_modules/
 .DS_Store
 dist/
 .wrangler/
+.astro/
 # Generated at build time by mcp-server/scripts/build-patterns-bundle.ts
 mcp-server/src/patterns.bundle.json

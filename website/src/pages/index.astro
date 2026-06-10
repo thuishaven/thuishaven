@@ -1,0 +1,117 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import PatternCard from "../components/PatternCard.astro";
+
+const patterns = (await getCollection("patterns")).sort((a, b) =>
+  a.id.localeCompare(b.id),
+);
+---
+
+<Base
+  title="Thuishaven — opinionated self-hosting patterns"
+  description="A community-driven library of opinionated, agent-readable self-hosting patterns. One recommended app, one deploy target, one exposure model per use case — with exact steps and known gotchas."
+>
+  <!-- Hero -->
+  <section class="py-12 text-center sm:py-20">
+    <h1
+      class="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl dark:text-white"
+    >
+      Self-hosting patterns your agent can actually follow.
+    </h1>
+    <p class="mx-auto mt-5 max-w-2xl text-lg text-slate-600 dark:text-slate-400">
+      Thuishaven is a playbook of opinionated, end-to-end recipes for common
+      self-hosting use cases. Each pattern names one recommended app, one deploy
+      target, one exposure model — with exact steps and the gotchas that cost
+      you an evening.
+    </p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a
+        href="/patterns/"
+        class="rounded-lg bg-harbor-600 px-5 py-2.5 font-medium text-white hover:bg-harbor-700 dark:bg-harbor-500 dark:text-slate-950 dark:hover:bg-harbor-400"
+        >Browse patterns</a
+      >
+      <a
+        href="/mcp/"
+        class="rounded-lg border border-slate-300 px-5 py-2.5 font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+        >Connect to MCP</a
+      >
+    </div>
+    <p class="mt-4 text-sm text-slate-500 dark:text-slate-500">
+      Open source, MIT licensed, on
+      <a
+        href="https://github.com/thuishaven/thuishaven"
+        class="underline decoration-slate-400 underline-offset-2 hover:text-slate-900 dark:hover:text-white"
+        >GitHub</a
+      >.
+    </p>
+  </section>
+
+  <!-- What this is / isn't / who it's for -->
+  <section class="grid gap-6 border-t border-slate-200 py-12 sm:grid-cols-3 dark:border-slate-800">
+    <div>
+      <h2 class="font-semibold text-slate-900 dark:text-white">What this is</h2>
+      <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+        <li>
+          A <strong class="font-medium text-slate-800 dark:text-slate-200">playbook</strong> — opinionated, end-to-end
+          recipes for real use cases, curated via PR.
+        </li>
+        <li>
+          <strong class="font-medium text-slate-800 dark:text-slate-200">Agent-readable</strong> — structured frontmatter
+          plus markdown, served over MCP, so Claude Code and friends stop
+          hallucinating env vars.
+        </li>
+        <li>
+          The <strong class="font-medium text-slate-800 dark:text-slate-200">opinionated glue</strong> between tools that
+          already work: Dokploy, Tailscale, Cloudflare, the apps themselves.
+        </li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="font-semibold text-slate-900 dark:text-white">What this isn't</h2>
+      <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+        <li>
+          Not a hosting platform — we don't run your containers.
+        </li>
+        <li>
+          Not an app catalog — that's
+          <a
+            href="https://github.com/awesome-selfhosted/awesome-selfhosted"
+            class="underline decoration-slate-400 underline-offset-2 hover:text-slate-900 dark:hover:text-white"
+            >awesome-selfhosted</a
+          >'s job, and they do it well.
+        </li>
+        <li>Not a Dokploy/Coolify replacement — we tell agents how to use them.</li>
+        <li>Not for profit. No paid tier, no upsells, no telemetry.</li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="font-semibold text-slate-900 dark:text-white">Who it's for</h2>
+      <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+        <li>
+          People with a Linux server (or willing to rent one) who want useful
+          apps running without spending the weekend on config.
+        </li>
+        <li>
+          Homelabbers who use agentic workflows and want recipes their tools can
+          consume directly.
+        </li>
+        <li>The agents themselves, acting on behalf of the above.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Current patterns -->
+  <section class="border-t border-slate-200 py-12 dark:border-slate-800">
+    <div class="flex items-baseline justify-between">
+      <h2 class="text-xl font-semibold text-slate-900 dark:text-white">Patterns</h2>
+      <a
+        href="/patterns/"
+        class="text-sm text-harbor-600 hover:underline dark:text-harbor-400">All patterns →</a
+      >
+    </div>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {patterns.map((pattern) => <PatternCard pattern={pattern} />)}
+    </div>
+  </section>
+</Base>

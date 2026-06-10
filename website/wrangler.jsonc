@@ -1,0 +1,22 @@
+// Cloudflare Workers static-assets config for thuishaven.dev.
+// Pure static site: no `main`, no server code — the Worker only serves dist/.
+// (Cloudflare recommends Workers static assets over Pages for new projects;
+// static asset requests are free.)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "thuishaven-website",
+  "compatibility_date": "2026-06-10",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    {
+      "pattern": "thuishaven.dev",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": false
+  }
+}

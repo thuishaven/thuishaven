@@ -1,0 +1,115 @@
+---
+import Base from "../layouts/Base.astro";
+
+const codeBlock =
+  "mt-3 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100";
+const h2 = "mt-12 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white";
+const h3 = "mt-8 text-lg font-semibold text-slate-900 dark:text-white";
+const p = "mt-3 text-slate-600 dark:text-slate-400";
+
+const claudeDesktopStdio = `{
+  "mcpServers": {
+    "thuishaven": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/thuishaven/thuishaven-mcp",
+               "node", "mcp-server/dist/node-stdio.js"]
+    }
+  }
+}`;
+
+const mcpJson = `{
+  "mcpServers": {
+    "thuishaven": {
+      "type": "http",
+      "url": "https://mcp.thuishaven.dev/mcp"
+    }
+  }
+}`;
+---
+
+<Base
+  title="Connect to MCP — Thuishaven"
+  description="Connect Claude Code, Claude Desktop, or any MCP client to the Thuishaven pattern library — hosted endpoint or self-hosted."
+>
+  <div class="mx-auto max-w-3xl">
+    <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+      Connect to MCP
+    </h1>
+    <p class={p}>
+      The pattern library is served over the
+      <a
+        href="https://modelcontextprotocol.io"
+        class="underline decoration-slate-400 underline-offset-2">Model Context Protocol</a
+      >. Once connected, your agent can list patterns, fetch full recipes, and
+      match problem descriptions to patterns — five tools:
+      <code class="text-sm">list_patterns</code>,
+      <code class="text-sm">get_pattern</code>,
+      <code class="text-sm">find_pattern_for_problem</code>,
+      <code class="text-sm">list_categories</code>,
+      <code class="text-sm">get_setup_guide</code>.
+    </p>
+
+    <h2 class={h2}>Hosted endpoint (easiest)</h2>
+    <p class={p}>
+      The hosted MCP runs at <code class="text-sm">https://mcp.thuishaven.dev</code>.
+      Stateless and free; nothing about your requests is stored or logged.
+    </p>
+
+    <h3 class={h3}>Claude Code</h3>
+    <pre class={codeBlock}><code>claude mcp add --transport http thuishaven https://mcp.thuishaven.dev/mcp</code></pre>
+    <p class={p}>
+      Or commit it to a project's <code class="text-sm">.mcp.json</code> so your
+      whole team (and the agent) gets it:
+    </p>
+    <pre class={codeBlock}><code>{mcpJson}</code></pre>
+
+    <h3 class={h3}>Claude Desktop / claude.ai</h3>
+    <p class={p}>
+      Settings → Connectors → <strong>Add custom connector</strong>, then paste
+      <code class="text-sm">https://mcp.thuishaven.dev/mcp</code>.
+    </p>
+
+    <h3 class={h3}>Try it</h3>
+    <p class={p}>
+      Ask your agent: <em>"Find me a Thuishaven pattern for scheduling a date
+      with friends, and follow it."</em>
+    </p>
+
+    <h2 class={h2}>Self-host the MCP</h2>
+    <p class={p}>
+      Prefer not to depend on the hosted endpoint, or want to serve your own
+      fork of the patterns? Same code, three options.
+    </p>
+
+    <h3 class={h3}>Docker image</h3>
+    <pre class={codeBlock}><code>docker run -p 3000:3000 ghcr.io/thuishaven/thuishaven-mcp
+claude mcp add --transport http thuishaven http://localhost:3000/mcp</code></pre>
+    <p class={p}>
+      Or run it as a stdio server, directly wired into Claude Desktop
+      (<code class="text-sm">claude_desktop_config.json</code>):
+    </p>
+    <pre class={codeBlock}><code>{claudeDesktopStdio}</code></pre>
+
+    <h3 class={h3}>From source</h3>
+    <pre class={codeBlock}><code>git clone https://github.com/thuishaven/thuishaven
+cd thuishaven/mcp-server && npm install
+npm run start:stdio   # direct Claude integration
+npm run start:http    # HTTP server on :3000</code></pre>
+
+    <h3 class={h3}>Your own patterns</h3>
+    <p class={p}>
+      Point any self-hosted instance at a custom patterns directory with the
+      <code class="text-sm">PATTERNS_DIR</code> env var (or mount it over
+      <code class="text-sm">/app/patterns</code> in Docker). Custom patterns
+      must validate against the
+      <a
+        href="https://github.com/thuishaven/thuishaven/blob/main/schema/pattern.schema.json"
+        class="underline decoration-slate-400 underline-offset-2">pattern schema</a
+      > — the server refuses to start otherwise. See the
+      <a
+        href="https://github.com/thuishaven/thuishaven/tree/main/mcp-server"
+        class="underline decoration-slate-400 underline-offset-2">mcp-server README</a
+      > for details.
+    </p>
+  </div>
+</Base>

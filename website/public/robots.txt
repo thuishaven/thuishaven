@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://thuishaven.dev/sitemap-index.xml

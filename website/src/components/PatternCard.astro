@@ -1,0 +1,28 @@
+---
+import type { CollectionEntry } from "astro:content";
+import StatusBadge from "./StatusBadge.astro";
+
+interface Props {
+  pattern: CollectionEntry<"patterns">;
+}
+
+const { pattern } = Astro.props;
+const { data } = pattern;
+---
+
+<a
+  href={`/patterns/${pattern.id}/`}
+  class="flex flex-col gap-2 rounded-lg border border-slate-200 p-5 transition-colors hover:border-harbor-500 dark:border-slate-800 dark:hover:border-harbor-500"
+  data-category={data.category}
+  data-status={data.status}
+  data-tags={data.tags.join(" ")}
+>
+  <div class="flex items-start justify-between gap-3">
+    <h3 class="font-semibold text-slate-900 dark:text-white">{data.title}</h3>
+    <StatusBadge status={data.status} />
+  </div>
+  <p class="text-sm text-slate-600 dark:text-slate-400">{data.problem.trim()}</p>
+  <p class="mt-auto pt-1 text-xs text-slate-500 dark:text-slate-500">
+    {data.category} · ~{data.estimated_time_minutes} min · {data.recommendation.app}
+  </p>
+</a>

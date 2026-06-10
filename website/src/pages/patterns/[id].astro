@@ -1,0 +1,163 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
+
+export async function getStaticPaths() {
+  const patterns = await getCollection("patterns");
+  return patterns.map((pattern) => ({
+    params: { id: pattern.id },
+    props: { pattern },
+  }));
+}
+
+const { pattern } = Astro.props;
+const { data } = pattern;
+const { Content } = await render(pattern);
+
+const allPatterns = await getCollection("patterns");
+const related = data.related
+  .map((id) => allPatterns.find((p) => p.id === id))
+  .filter((p) => p !== undefined);
+
+const sourceUrl = `https://github.com/thuishaven/thuishaven/blob/main/patterns/${pattern.id}.md`;
+const sidebarHeading =
+  "text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500";
+---
+
+<Base title={`${data.title} — Thuishaven`} description={data.problem.trim()}>
+  <div class="flex flex-col gap-10 lg:flex-row">
+    <!-- Main content -->
+    <article class="min-w-0 flex-1">
+      {
+        data.status === "experimental" && (
+          <p class="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <strong>Experimental:</strong> this pattern has not yet been
+            validated end-to-end by a maintainer. Apply extra scrutiny and
+            report what breaks.
+          </p>
+        )
+      }
+      {
+        data.status === "deprecated" && (
+          <p class="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+            <strong>Deprecated:</strong> a better pattern exists. Check the
+            related patterns in the sidebar.
+          </p>
+        )
+      }
+      <div
+        class="prose prose-slate max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:decoration-slate-400 prose-a:underline-offset-2"
+      >
+        <Content />
+      </div>
+    </article>
+
+    <!-- Frontmatter sidebar -->
+    <aside class="w-full shrink-0 lg:w-72">
+      <div
+        class="space-y-5 rounded-lg border border-slate-200 p-5 text-sm lg:sticky lg:top-20 dark:border-slate-800"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusBadge status={data.status} />
+          <span class="text-slate-500 dark:text-slate-400"
+            >{data.category} · ~{data.estimated_time_minutes} min · v{data.version}</span
+          >
+        </div>
+
+        <div>
+          <h2 class={sidebarHeading}>Recommendation</h2>
+          <p class="mt-1.5">
+            <a
+              href={data.recommendation.app_source}
+              class="font-medium text-harbor-600 hover:underline dark:text-harbor-400"
+              >{data.recommendation.app}</a
+            >
+            on {data.recommendation.deploy_target}, exposed via {
+              data.recommendation.exposure
+            }
+          </p>
+        </div>
+
+        {
+          data.prerequisites.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Prerequisites</h2>
+              <ul class="mt-1.5 list-inside list-disc space-y-1 text-slate-600 dark:text-slate-400">
+                {data.prerequisites.map((p) => (
+                  <li>
+                    <code class="text-xs">{p}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          data.gotchas.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Gotchas</h2>
+              <ul class="mt-1.5 list-inside list-disc space-y-1 text-slate-600 dark:text-slate-400">
+                {data.gotchas.map((g) => (
+                  <li>{g}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          data.alternatives.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Alternatives considered</h2>
+              <ul class="mt-1.5 space-y-2 text-slate-600 dark:text-slate-400">
+                {data.alternatives.map((a) => (
+                  <li>
+                    <span class="font-medium text-slate-800 dark:text-slate-300">
+                      {a.name}
+                    </span>
+                    {" — "}
+                    {a.reason_not_chosen}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          related.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Related patterns</h2>
+              <ul class="mt-1.5 space-y-1">
+                {related.map((r) => (
+                  <li>
+                    <a
+                      href={`/patterns/${r.id}/`}
+                      class="text-harbor-600 hover:underline dark:text-harbor-400"
+                    >
+                      {r.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        <div class="border-t border-slate-200 pt-4 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <p>
+            Maintainer: <a
+              href={`https://github.com/${data.maintainer}`}
+              class="hover:underline">@{data.maintainer}</a
+            >
+          </p>
+          <p class="mt-1">
+            <a href={sourceUrl} class="hover:underline">View source / edit on GitHub</a>
+          </p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</Base>
