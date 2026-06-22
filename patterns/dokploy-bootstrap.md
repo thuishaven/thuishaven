@@ -35,6 +35,7 @@ prerequisites:
 estimated_time_minutes: 45
 
 gotchas:
+  - "Bare `tailscale up` blocks on an interactive browser login — on a headless server or an agent-driven run it hangs/loops; use `tailscale up --authkey=...` with a pre-generated key instead"
   - "The installer runs `docker swarm leave --force` unconditionally — it will tear down existing Swarm membership on the machine"
   - "Installation aborts if anything listens on ports 80, 443, or 3000 — stop existing web servers first"
   - "The first person to open port 3000 creates the admin account — create yours immediately after install"
@@ -92,20 +93,32 @@ Resolve anything that shows up: stop/disable an existing nginx/apache (`systemct
 
 ### 2. Install Tailscale first
 
-Installing Tailscale before Dokploy means you can do the security-sensitive first-login over the tailnet.
+Installing Tailscale before Dokploy means you can do the security-sensitive first-login over the tailnet, never exposing the admin UI to the public internet.
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up
 ```
 
-Follow the printed auth URL, log in, then note the server's tailnet IP:
+Then bring the node up. **On a headless server — and especially when an agent is driving the setup — do not use the bare interactive `tailscale up`.** It prints an authentication URL and blocks until you complete a browser login, which agents loop on and scripts hang on. Instead, generate an auth key first and pass it in non-interactively:
+
+1. In the Tailscale admin console, go to **[Settings → Keys → Generate auth key](https://login.tailscale.com/admin/settings/keys)**. Tick **Pre-approved** so the node joins without a separate approval step; for a throwaway or dogfood box, also tick **Ephemeral** so it auto-removes when it goes offline. Copy the `tskey-auth-…` value.
+2. Bring the node up with the key:
+
+```bash
+sudo tailscale up --authkey=tskey-auth-XXXXXXXX --hostname=dokploy --ssh
+```
+
+This returns immediately — no URL to fetch, no browser round-trip. (The key lands in your shell history and the process list; on a server you intend to keep, use a short-lived or ephemeral key and rotate it afterwards.)
+
+> At a desktop with a browser, plain `tailscale up` is fine — follow the printed URL. The auth-key flow is the one to use on servers and in any automated or agent-driven run.
+
+Note the server's tailnet IP — you'll use it to reach the admin UI:
 
 ```bash
 tailscale ip -4   # something like 100.x.y.z
 ```
 
-In the Tailscale admin console, consider disabling key expiry for this server so it doesn't drop off the tailnet in 180 days.
+In the Tailscale admin console, consider disabling key expiry for this server so it doesn't drop off the tailnet in 180 days. (An ephemeral node is exempt — it's removed on disconnect rather than expiring.)
 
 ### 3. Run the Dokploy installer
 
