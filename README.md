@@ -35,6 +35,19 @@ Or commit it to a project's `.mcp.json`:
 
 Then ask your agent things like *"find me a pattern for scheduling dates with friends, and follow it on my server."* Five tools are exposed: `list_patterns`, `get_pattern`, `find_pattern_for_problem`, `list_categories`, `get_setup_guide`.
 
+The server also ships three **prompts** — user-invoked slash commands that carry the workflow, not just the data: `/mcp__thuishaven__self_host`, `/mcp__thuishaven__bootstrap_server`, and `/mcp__thuishaven__contribute_pattern`.
+
+## Use it as a skill
+
+For agents that should reach for Thuishaven *without being asked* — whenever the conversation turns to self-hosting — install the bundled [Agent Skill](skills/thuishaven-self-hosting/SKILL.md). It teaches the agent the workflow (match a pattern → follow it verbatim → treat every deviation as a pattern bug) and triggers automatically on relevant requests.
+
+```bash
+# Claude Code: drop it into your skills directory
+cp -r skills/thuishaven-self-hosting ~/.claude/skills/
+```
+
+For Claude.ai, zip the `skills/thuishaven-self-hosting` folder and upload it under **Settings → Capabilities → Skills**. The skill expects the hosted MCP (above) to be connected.
+
 ## Quick start: self-host the MCP
 
 Run the published image (HTTP on :3000, or stdio for direct Claude Desktop/Code integration):
@@ -64,6 +77,7 @@ schema/      JSON Schema the frontmatter is validated against
 scripts/     validate-patterns.ts — the CI validation CLI
 mcp-server/  MCP server: Cloudflare Workers + Node HTTP (Docker) + Node stdio
 website/     Astro static site reading ../patterns directly
+skills/      Agent Skill that teaches an agent the self-hosting workflow
 docs/        deployment runbook
 ```
 

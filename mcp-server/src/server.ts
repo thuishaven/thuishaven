@@ -12,6 +12,7 @@ import { getPattern } from "./core/tools/get-pattern.js";
 import { getSetupGuide } from "./core/tools/get-setup-guide.js";
 import { listCategories } from "./core/tools/list-categories.js";
 import { listPatterns } from "./core/tools/list-patterns.js";
+import { registerPrompts } from "./core/prompts.js";
 import { ToolError, type Pattern } from "./core/types.js";
 
 export const SERVER_NAME = "thuishaven";
@@ -111,6 +112,10 @@ export function createServer(patterns: Pattern[]): McpServer {
     },
     async (input) => run(() => getSetupGuide(patterns, input)),
   );
+
+  // Prompts (user-invoked slash commands) carry the workflow opinion the tools
+  // can't express. Registering them auto-declares the `prompts` capability.
+  registerPrompts(server, patterns);
 
   return server;
 }

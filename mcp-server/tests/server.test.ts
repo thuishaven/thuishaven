@@ -103,4 +103,35 @@ describe("MCP server", () => {
     const text = (result.content as Array<{ type: string; text: string }>)[0];
     expect(text?.text).toContain("Invalid option");
   });
+
+  it("exposes the three workflow prompts", async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name).sort()).toEqual([
+      "bootstrap_server",
+      "contribute_pattern",
+      "self_host",
+    ]);
+  });
+
+  it("self_host prompt surfaces the matched pattern for the problem", async () => {
+    const result = await client.getPrompt({
+      name: "self_host",
+      arguments: { problem: "schedule a date with friends" },
+    });
+    const text = result.messages
+      .map((m) => (m.content.type === "text" ? m.content.text : ""))
+      .join("\n");
+    expect(text).toContain("scheduling-tool");
+    // The shared workflow opinion travels with every prompt.
+    expect(text).toContain("Every deviation is a pattern bug");
+  });
+
+  it("bootstrap_server prompt warns against running on a live machine", async () => {
+    const result = await client.getPrompt({ name: "bootstrap_server" });
+    const text = result.messages
+      .map((m) => (m.content.type === "text" ? m.content.text : ""))
+      .join("\n");
+    expect(text).toContain("get_setup_guide");
+    expect(text).toContain("swarm leave --force");
+  });
 });

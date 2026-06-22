@@ -12,6 +12,18 @@ Exposes the patterns in [`../patterns/`](../patterns/) via the [Model Context Pr
 | `list_categories` | All categories with descriptions and pattern counts |
 | `get_setup_guide` | The bootstrap pattern for a `target` (currently `dokploy`) |
 
+## Prompts
+
+User-invoked slash commands (e.g. `/mcp__thuishaven__self_host` in Claude Code) that carry the *workflow* the tools can't express — match a pattern, follow it verbatim, treat every deviation as a pattern bug.
+
+| Prompt | Purpose |
+|---|---|
+| `self_host` | Find and follow a pattern for what the user wants to run (arg: `problem`) |
+| `bootstrap_server` | Prepare a fresh server before deploying apps |
+| `contribute_pattern` | Turn a dogfood deviation into a fix or new-pattern PR (optional arg: `pattern_id`) |
+
+The same opinion, auto-triggered rather than user-invoked, ships as an Agent Skill in [`../skills/`](../skills/).
+
 ## Architecture
 
 ```
@@ -19,8 +31,9 @@ src/
 ├── core/                 runtime-agnostic: types, loader, the five tools (pure functions)
 │   ├── loader.ts         assemble validated patterns (no Node APIs, no ajv)
 │   ├── validate.ts       gray-matter + ajv schema validation (Node-only contexts)
-│   └── tools/            one file per MCP tool
-├── server.ts             registers the tools on an McpServer (shared by all entries)
+│   ├── tools/            one file per MCP tool
+│   └── prompts.ts        the three workflow prompts (shared by all entries)
+├── server.ts             registers the tools + prompts on an McpServer (shared by all entries)
 ├── http-handler.ts       web-standard Request -> Response MCP handling (shared)
 ├── workers.ts            Cloudflare Workers entry (imports patterns.bundle.json)
 ├── node-http.ts          Node HTTP entry for Docker/self-host (reads ../patterns)
