@@ -1,18 +1,16 @@
 name: Deploy website
 
-# Manual trigger only for now — switch to the push trigger below once the
-# Cloudflare account is set up and CI deployments are deliberately enabled
-# (see docs/deployment.md):
-#
-#   push:
-#     branches: [main]
-#     paths:
-#       - "website/**"
-#       - "patterns/**"
-#       - "CONTRIBUTING.md"
-#       - ".github/workflows/deploy-site.yml"
+# Auto-deploys on push to main when site-affecting files change; also runnable
+# manually via the Actions tab (see docs/deployment.md).
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "patterns/**"
+      - "CONTRIBUTING.md"
+      - ".github/workflows/deploy-site.yml"
 
 jobs:
   deploy:
