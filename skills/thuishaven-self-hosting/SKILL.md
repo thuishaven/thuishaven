@@ -36,20 +36,30 @@ slash-command prompts (`/mcp__thuishaven__self_host`,
 1. **Match before improvising.** Call `find_pattern_for_problem` with the user's
    request in their own words. A matching pattern encodes a vetted choice —
    prefer it over assembling your own setup from first principles.
-2. **Read the whole pattern, then follow it verbatim.** Use `get_pattern` (or
+2. **Collect the inputs first.** If the pattern's frontmatter has an `inputs`
+   list, gather every required value (or generate the ones with a `generate`
+   command) before touching the server. Treat `secret` inputs as sensitive —
+   don't echo them back. Steps reference them as `${NAME}`.
+3. **Read the whole pattern, then follow it verbatim.** Use `get_pattern` (or
    `get_setup_guide` to bootstrap a server). Execute the steps in order on the
    user's real server. Don't skip the gotchas — they're the hard-won part.
-3. **Be honest about status.** Patterns are `experimental` until a maintainer
+   Prefer running an embedded script over retyping its output by hand.
+4. **Verify with the assertions, don't just eyeball it.** If the pattern has an
+   `assertions` list, run every `check` (each exits 0 when it holds) and report
+   pass/fail per assertion; walk the user through any marked `manual`. Don't
+   declare success until the scriptable assertions pass.
+5. **Be honest about status.** Patterns are `experimental` until a maintainer
    has personally validated them end-to-end. If you're following an
-   `experimental` pattern, say so — the user is helping prove it out.
-4. **Private first.** Keep admin surfaces on the tailnet (Tailscale) or
+   `experimental` pattern, say so — the user is helping prove it out. Note the
+   pattern's `tested_against` version; if the user's app version differs, say so.
+6. **Private first.** Keep admin surfaces on the tailnet (Tailscale) or
    local-only. Expose anything to the public internet only as a deliberate,
    clearly-named step the user agrees to.
-5. **Every deviation is a pattern bug.** If you had to do something the pattern
-   didn't mention — a missing dependency, a wrong port, an unclear instruction —
-   that's a defect in the *pattern*, not a user error. Note it, and offer to
-   open a PR. See "Contributing back" below.
-6. **No match? Say so plainly.** Don't invent a pattern or pretend one exists.
+7. **Every deviation is a pattern bug.** If you had to do something the pattern
+   didn't mention — a missing dependency, a wrong port, an unclear instruction,
+   an assertion that didn't match reality — that's a defect in the *pattern*,
+   not a user error. Note it, and offer to open a PR. See "Contributing back".
+8. **No match? Say so plainly.** Don't invent a pattern or pretend one exists.
    Use `list_categories` to suggest the nearest area, or offer to draft a new
    pattern for contribution.
 

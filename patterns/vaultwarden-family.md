@@ -1,7 +1,7 @@
 ---
 id: vaultwarden-family
 title: "Move your family off 1Password to self-hosted Vaultwarden"
-version: 1
+version: 2
 status: experimental
 category: security
 tags: [passwords, family, bitwarden, vaultwarden, password-manager]
@@ -34,6 +34,67 @@ prerequisites:
   - smtp-credentials-available
 
 estimated_time_minutes: 60
+
+tested_against:
+  app_version: "1.36.0"
+  verified: "2026-06-22"
+  upstream_docs: https://github.com/dani-garcia/vaultwarden/wiki
+
+inputs:
+  - name: DOMAIN
+    description: "Public hostname for the vault (the DOMAIN env var prepends https://)"
+    example: vault.example.com
+    format: hostname
+    required: true
+  - name: SMTP_HOST
+    description: "SMTP host — invites, verification, and emergency-access mail go through it"
+    example: smtp.example.com
+    required: true
+  - name: SMTP_PORT
+    description: "SMTP port"
+    default: "587"
+    format: integer
+    required: false
+  - name: SMTP_FROM
+    description: "From address for Vaultwarden mail"
+    example: vault@example.com
+    format: email
+    required: true
+  - name: SMTP_USERNAME
+    description: "SMTP username"
+    required: true
+  - name: SMTP_PASSWORD
+    description: "SMTP password"
+    secret: true
+    required: true
+  - name: ADMIN_PASSWORD
+    description: "Plaintext admin password you'll type into /admin; hashed into ADMIN_TOKEN below"
+    generate: "openssl rand -base64 32"
+    secret: true
+    required: true
+
+assertions:
+  - id: site-https
+    description: "https://${DOMAIN} responds (the web vault needs a secure context)"
+    check: "curl -fsS --max-time 10 https://${DOMAIN} >/dev/null"
+  - id: serving-vaultwarden
+    description: "It is Vaultwarden — the /alive health endpoint returns a timestamp"
+    check: "curl -fsS --max-time 10 https://${DOMAIN}/alive | grep -q ."
+  - id: clients-sync
+    description: "An item created on one client appears on another within seconds (WebSocket sync)"
+    manual: true
+  - id: member-isolation
+    description: "A second family member sees shared collections but not your personal vault"
+    manual: true
+  - id: signups-locked
+    description: "With SIGNUPS_ALLOWED=false deployed, the registration page refuses new sign-ups"
+    manual: true
+  - id: admin-accepts-token
+    description: "https://${DOMAIN}/admin accepts the admin password generated in step 1"
+    manual: true
+  - id: backup-restores
+    description: "The backup archive extracts on another machine and db.sqlite3 opens"
+    manual: true
 
 gotchas:
   - "Vaultwarden only works over HTTPS — the web vault uses Web Crypto APIs that browsers restrict to secure contexts"
@@ -180,13 +241,27 @@ Then get the archives **off the server** — sync `/var/backups/vaultwarden` to 
 
 ## Verification
 
-1. `https://vault.example.com` loads the web vault over HTTPS with a valid certificate (no warnings).
-2. You can log in from a browser extension and mobile app pointed at your server URL, and autofill works.
-3. Create an item on your phone; it appears in the browser extension within seconds (confirms WebSocket sync).
-4. A second family member can log in and sees shared collections but not your personal vault.
-5. With `SIGNUPS_ALLOWED=false` deployed, the registration page refuses new sign-ups.
-6. `https://vault.example.com/admin` asks for the admin password and accepts the one you generated in step 1.
-7. Run the backup script manually, extract the archive on another machine, and verify `db.sqlite3` opens: `sqlite3 db.sqlite3 'select count(*) from users;'`.
+The `assertions` in the frontmatter are the source of truth. The two scriptable
+ones exit non-zero on failure:
+
+```bash
+#!/usr/bin/env bash
+# verify.sh — DOMAIN must be exported (hostname, no scheme).
+set -euo pipefail
+: "${DOMAIN:?}"
+curl -fsS --max-time 10 "https://$DOMAIN" >/dev/null         && echo "✓ site-https"
+curl -fsS --max-time 10 "https://$DOMAIN/alive" | grep -q .  && echo "✓ serving-vaultwarden"
+echo "All scriptable assertions passed."
+```
+
+A password manager's important checks are inherently `manual: true` — they need
+real clients and a real second person. Do these by hand:
+
+- **clients-sync** — create an item on your phone; it appears in the browser extension within seconds (confirms WebSocket sync). Autofill works from a browser extension and mobile app pointed at your server URL.
+- **member-isolation** — a second family member logs in and sees shared collections but not your personal vault.
+- **signups-locked** — with `SIGNUPS_ALLOWED=false` deployed, the registration page refuses new sign-ups.
+- **admin-accepts-token** — `https://${DOMAIN}/admin` asks for the admin password and accepts the one generated in step 1.
+- **backup-restores** — run the backup script, extract the archive on another machine, and verify the database opens: `sqlite3 db.sqlite3 'select count(*) from users;'`. An untested backup is a hypothesis.
 
 ## Gotchas
 

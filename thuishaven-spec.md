@@ -148,6 +148,33 @@ gotchas:
   - "NEXT_PUBLIC_BASE_URL must match the public URL exactly, including https://"
   - "SMTP is optional but magic-link login won't work without it"
 
+# Optional: what this was last validated against (so staleness is detectable)
+tested_against:
+  app_version: "4.10"
+  verified: "2026-06-22"        # quote the date — bare YAML dates parse as Date
+  upstream_docs: https://support.rallly.co/self-hosting
+
+# Optional: typed parameters, referenced as ${NAME} in steps and assertions
+inputs:
+  - name: DOMAIN
+    description: "Public domain the poll site is served from"
+    example: dates.example.com
+    format: hostname            # string | email | url | hostname | integer
+    required: true
+  - name: SECRET_PASSWORD
+    description: "Session key; Rallly refuses to start under 32 chars"
+    generate: "openssl rand -hex 32"   # machine-generated instead of asked
+    secret: true
+
+# Optional: machine-checkable post-conditions (the executable Verification)
+assertions:
+  - id: site-reachable
+    description: "https://${DOMAIN} loads with a valid certificate"
+    check: "curl -fsS --max-time 10 https://${DOMAIN} >/dev/null"   # exit 0 == pass
+  - id: guest-can-vote
+    description: "Vote on the participant link from a private window"
+    manual: true                # human/GUI check; mutually exclusive with check
+
 # Related patterns (other things you might want next)
 related: [vaultwarden-family, dokploy-bootstrap]
 ---
@@ -162,9 +189,14 @@ Every pattern body should follow this rough structure for predictability:
 1. **Context** — one paragraph on when to use this pattern
 1. **Decisions explained** — why this app, why this deploy target, why this exposure model
 1. **Step-by-step** — numbered, copy-pasteable commands and configs
-1. **Verification** — how to confirm it works
+1. **Verification** — how to confirm it works; where the pattern declares `assertions`, this is their runnable form (a `verify.sh` of the scriptable checks plus the `manual` ones spelled out)
 1. **Gotchas** — expanded version of frontmatter gotchas with explanations
 1. **Maintenance notes** — backups, updates, what breaks over time
+
+Patterns with scriptable parts should also embed a generator (build the env from
+the `inputs`) so values are produced, not retyped. The optional `inputs`,
+`assertions`, and `tested_against` frontmatter fields are the structured contract
+the body's scripts mirror; the validator enforces their internal consistency.
 
 ### Allowed categories (initial set, expandable via PR)
 

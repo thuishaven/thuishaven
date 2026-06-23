@@ -144,6 +144,104 @@
         "minLength": 1
       }
     },
+    "tested_against": {
+      "type": "object",
+      "description": "What this pattern was last validated against, so staleness is detectable",
+      "additionalProperties": false,
+      "required": ["app_version", "verified"],
+      "properties": {
+        "app_version": {
+          "type": "string",
+          "description": "Version of the recommended app the steps were verified against",
+          "minLength": 1
+        },
+        "verified": {
+          "type": "string",
+          "description": "ISO date (YYYY-MM-DD) the pattern was last verified end-to-end",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "upstream_docs": {
+          "type": "string",
+          "description": "URL of the upstream documentation checked during verification",
+          "pattern": "^https?://"
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "description": "Typed parameters the user (or agent) supplies before following the pattern. Separates the recipe from the deployment-specific values; referenced as ${NAME} in steps and assertions.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "ENV-style identifier, referenced as ${NAME} in steps and assertions",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this value is and, if user-supplied, what to ask for",
+            "minLength": 1
+          },
+          "example": {
+            "type": "string",
+            "description": "Illustrative value, not used literally"
+          },
+          "default": {
+            "type": "string",
+            "description": "Value applied when the user supplies none"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the user must supply a value (default true)"
+          },
+          "secret": {
+            "type": "boolean",
+            "description": "Whether the value is sensitive and must not be echoed or logged (default false)"
+          },
+          "generate": {
+            "type": "string",
+            "description": "Shell command that produces the value instead of asking the user, e.g. 'openssl rand -hex 32'"
+          },
+          "format": {
+            "type": "string",
+            "description": "Value-shape hint for prompting and validation",
+            "enum": ["string", "email", "url", "hostname", "integer"]
+          }
+        }
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "description": "Machine-checkable post-conditions: the executable form of the Verification section. The agent runs each check (or performs each manual step) and reports pass/fail.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable kebab-case identifier for the assertion",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "description": {
+            "type": "string",
+            "description": "What is being asserted, in plain language",
+            "minLength": 1
+          },
+          "check": {
+            "type": "string",
+            "description": "Shell command that exits 0 exactly when the assertion holds; may reference ${INPUT} values. Mutually exclusive with manual."
+          },
+          "manual": {
+            "type": "boolean",
+            "description": "True when the assertion can only be verified by a human (GUI/visual). Mutually exclusive with check."
+          }
+        }
+      }
+    },
     "related": {
       "type": "array",
       "description": "IDs of related patterns the user might want next",

@@ -31,4 +31,7 @@
 - [ ] `status` is `experimental` (new patterns always start experimental)
 - [ ] Filename matches the frontmatter `id`
 - [ ] Body follows the convention: Context → Decisions explained → Step-by-step → Verification → Gotchas → Maintenance notes
+- [ ] Declared `inputs` for deployment-specific values, with `secret:`/`generate:` set where relevant (or N/A — explain why)
+- [ ] Declared `assertions` with at least one scriptable `check`; GUI/visual checks marked `manual: true` (or N/A — explain why)
+- [ ] Set `tested_against` (app version + verified date, date quoted)
 - [ ] `npx tsx scripts/validate-patterns.ts` passes locally

@@ -1,7 +1,7 @@
 ---
 id: scheduling-tool
 title: "Date picker for sharing with friends"
-version: 1
+version: 2
 status: experimental
 category: collaboration
 tags: [scheduling, polls, calendar, dates, no-account-needed, rallly]
@@ -33,6 +33,76 @@ prerequisites:
   - smtp-credentials-available
 
 estimated_time_minutes: 30
+
+tested_against:
+  app_version: "4.10"
+  verified: "2026-06-22"
+  upstream_docs: https://support.rallly.co/self-hosting
+
+inputs:
+  - name: DOMAIN
+    description: "Public domain the poll site is served from"
+    example: dates.example.com
+    format: hostname
+    required: true
+  - name: SUPPORT_EMAIL
+    description: "Your email — admin, sender fallback, and the only address allowed to register"
+    example: you@example.com
+    format: email
+    required: true
+  - name: SMTP_HOST
+    description: "SMTP host for the passwordless login emails"
+    example: smtp.resend.com
+    required: true
+  - name: SMTP_PORT
+    description: "SMTP port (587 for STARTTLS, 465 for implicit TLS)"
+    default: "587"
+    format: integer
+    required: false
+  - name: SMTP_USER
+    description: "SMTP username"
+    required: true
+  - name: SMTP_PWD
+    description: "SMTP password — note the env var is SMTP_PWD, not SMTP_PASSWORD"
+    secret: true
+    required: true
+  - name: DB_HOST
+    description: "Internal hostname Dokploy shows for the rallly-db Postgres service"
+    example: rallly-db
+    required: true
+  - name: DB_PASSWORD
+    description: "Postgres password for the rallly user (avoid @ : / — they need URL-encoding)"
+    generate: "openssl rand -hex 24"
+    secret: true
+    required: true
+  - name: SECRET_PASSWORD
+    description: "Session encryption key; Rallly refuses to start under 32 chars"
+    generate: "openssl rand -hex 32"
+    secret: true
+    required: true
+
+assertions:
+  - id: site-reachable
+    description: "https://${DOMAIN} loads with a valid TLS certificate"
+    check: "curl -fsS --max-time 10 https://${DOMAIN} >/dev/null"
+  - id: serving-rallly
+    description: "The domain actually serves Rallly, not a default Traefik/404 page"
+    check: "curl -fsS --max-time 10 https://${DOMAIN} | grep -qi rallly"
+  - id: db-not-exposed
+    description: "Postgres is not reachable on the public interface"
+    check: "! nc -z -w3 ${DOMAIN} 5432"
+  - id: login-email-delivers
+    description: "A login attempt produces a magic-link/code email within a minute (check spam once)"
+    manual: true
+  - id: guest-can-vote
+    description: "The participant link can be voted on from a private window, no login"
+    manual: true
+  - id: registration-locked
+    description: "A second registration with a different email is refused (confirms ALLOWED_EMAILS)"
+    manual: true
+  - id: backup-test-passes
+    description: "The Dokploy database backup test for rallly-db succeeds"
+    manual: true
 
 gotchas:
   - "NEXT_PUBLIC_BASE_URL must match the public URL exactly, including https:// — login callbacks break otherwise"
@@ -83,23 +153,41 @@ Assumes a server bootstrapped with [dokploy-bootstrap](dokploy-bootstrap.md) and
 
 ### 3. Set environment variables
 
+Don't hand-assemble these — the `inputs` in this pattern's frontmatter are the
+typed parameters, and the script below generates the env block from them so the
+naming traps (`SMTP_PWD` not `SMTP_PASSWORD`, the 32-char `SECRET_PASSWORD`
+minimum) can't be fat-fingered. Fill the inputs, then run:
+
 ```bash
-NEXT_PUBLIC_BASE_URL=https://dates.example.com
-SECRET_PASSWORD=<openssl rand -hex 32>          # session encryption; minimum 32 chars
-DATABASE_URL=postgres://rallly:<db-password>@<internal-db-host>:5432/rallly
-SUPPORT_EMAIL=you@example.com                   # required; shown to users and used as sender fallback
+#!/usr/bin/env bash
+# make-env.sh — generate rallly.env from this pattern's inputs.
+# Required inputs must be exported first; generated ones are filled if unset.
+set -euo pipefail
+: "${DOMAIN:?} ${SUPPORT_EMAIL:?} ${SMTP_HOST:?} ${SMTP_USER:?} ${SMTP_PWD:?} ${DB_HOST:?} ${DB_PASSWORD:?}"
+SECRET_PASSWORD="${SECRET_PASSWORD:-$(openssl rand -hex 32)}"   # idempotent: reuse if already set
+SMTP_PORT="${SMTP_PORT:-587}"
 
-# SMTP — effectively required: login is passwordless via email
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USER=you@example.com
-SMTP_PWD=your-smtp-password                     # note: PWD, not PASSWORD
-SMTP_SECURE=false                               # false for STARTTLS on 587; true for implicit TLS on 465
-
-# Keep the instance yours: only this address can register
-ALLOWED_EMAILS=you@example.com
-INITIAL_ADMIN_EMAIL=you@example.com
+cat > rallly.env <<EOF
+NEXT_PUBLIC_BASE_URL=https://${DOMAIN}
+SECRET_PASSWORD=${SECRET_PASSWORD}
+DATABASE_URL=postgres://rallly:${DB_PASSWORD}@${DB_HOST}:5432/rallly
+SUPPORT_EMAIL=${SUPPORT_EMAIL}
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_USER=${SMTP_USER}
+SMTP_PWD=${SMTP_PWD}
+SMTP_SECURE=$([ "${SMTP_PORT}" = "465" ] && echo true || echo false)
+ALLOWED_EMAILS=${SUPPORT_EMAIL}
+INITIAL_ADMIN_EMAIL=${SUPPORT_EMAIL}
+EOF
+echo "wrote rallly.env (SECRET_PASSWORD is ${#SECRET_PASSWORD} chars)"
 ```
+
+Paste the contents of `rallly.env` into the service's Environment tab and deploy.
+Several pattern gotchas are now enforced by the script instead of merely
+documented: `SMTP_SECURE` is derived from the port, `ALLOWED_EMAILS` /
+`INITIAL_ADMIN_EMAIL` are locked to you, and `SECRET_PASSWORD` is always long
+enough.
 
 Notes:
 
@@ -131,12 +219,28 @@ The only state is in Postgres:
 
 ## Verification
 
-1. `https://dates.example.com` loads with a valid certificate.
-2. Magic-link/verification email arrives within a minute of a login attempt (check spam the first time).
-3. `/control-panel` shows you as admin.
-4. A poll created by you can be voted on from a private window and from a phone outside your network, without login.
-5. A second registration attempt with a different email address is refused (confirms `ALLOWED_EMAILS`).
-6. The database backup test in Dokploy succeeds.
+The `assertions` in the frontmatter are the source of truth; this section is
+their runnable form. The scriptable ones exit non-zero on failure, so an agent
+can run them and report exactly which check failed instead of asking you to eyeball a list:
+
+```bash
+#!/usr/bin/env bash
+# verify.sh — DOMAIN must be exported.
+set -euo pipefail
+: "${DOMAIN:?}"
+curl -fsS --max-time 10 "https://$DOMAIN" >/dev/null        && echo "✓ site-reachable"
+curl -fsS --max-time 10 "https://$DOMAIN" | grep -qi rallly && echo "✓ serving-rallly"
+! nc -z -w3 "$DOMAIN" 5432                                  && echo "✓ db-not-exposed"
+echo "All scriptable assertions passed."
+```
+
+The remaining assertions are `manual: true` because they need a human or a real
+mailbox — do these by hand:
+
+- **login-email-delivers** — trigger a login; the magic-link/code email should arrive within a minute (check spam the first time). This is also your SMTP smoke test.
+- **guest-can-vote** — open a poll's participant link in a private window and vote without logging in. That's the experience your friends get.
+- **registration-locked** — a second registration with a different email is refused (confirms `ALLOWED_EMAILS`). `/control-panel` should also show you as admin.
+- **backup-test-passes** — the Dokploy backup test for `rallly-db` succeeds.
 
 ## Gotchas
 

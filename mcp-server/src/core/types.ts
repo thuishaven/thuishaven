@@ -34,6 +34,43 @@ export interface Alternative {
   reason_not_chosen: string;
 }
 
+/** What the pattern was last validated against, so staleness is detectable. */
+export interface TestedAgainst {
+  app_version: string;
+  /** ISO date (YYYY-MM-DD). */
+  verified: string;
+  upstream_docs?: string;
+}
+
+export type InputFormat = "string" | "email" | "url" | "hostname" | "integer";
+
+/** A typed parameter the user (or agent) supplies before following the pattern. */
+export interface PatternInput {
+  /** ENV-style identifier, referenced as ${NAME} in steps and assertions. */
+  name: string;
+  description: string;
+  example?: string;
+  default?: string;
+  /** Whether the user must supply a value. Defaults to true when omitted. */
+  required?: boolean;
+  /** Sensitive value that must not be echoed or logged. Defaults to false. */
+  secret?: boolean;
+  /** Shell command that produces the value instead of asking the user. */
+  generate?: string;
+  format?: InputFormat;
+}
+
+/** A machine-checkable post-condition — the executable form of Verification. */
+export interface Assertion {
+  /** Stable kebab-case identifier. */
+  id: string;
+  description: string;
+  /** Shell command that exits 0 when the assertion holds. Excludes manual. */
+  check?: string;
+  /** True when only a human can verify (GUI/visual). Excludes check. */
+  manual?: boolean;
+}
+
 export interface PatternFrontmatter {
   id: string;
   title: string;
@@ -48,6 +85,10 @@ export interface PatternFrontmatter {
   prerequisites: string[];
   estimated_time_minutes: number;
   gotchas: string[];
+  /** Optional v2 fields — present where the pattern has scriptable parts. */
+  tested_against?: TestedAgainst;
+  inputs?: PatternInput[];
+  assertions?: Assertion[];
   related: string[];
 }
 

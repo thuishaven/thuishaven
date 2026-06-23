@@ -34,18 +34,29 @@ const WORKFLOW = `How to work with Thuishaven patterns:
 1. **Match before improvising.** Call \`find_pattern_for_problem\` first. A
    matching pattern encodes a vetted, opinionated choice (one app, one deploy
    target, one exposure model) — prefer it over assembling your own setup.
-2. **Read the whole pattern, then follow it verbatim.** Use \`get_pattern\` (or
+2. **Collect the inputs first.** If the frontmatter has an \`inputs\` list,
+   gather every required value (or generate the ones with a \`generate\` command)
+   before touching the server. Treat \`secret\` inputs as sensitive — don't echo
+   them back. Steps reference them as \`\${NAME}\`.
+3. **Read the whole pattern, then follow it verbatim.** Use \`get_pattern\` (or
    \`get_setup_guide\` to bootstrap a server). Execute the steps in order on the
-   user's real server; don't skip the gotchas.
-3. **Be honest about status.** If the pattern is \`experimental\`, tell the user
-   it hasn't been validated end-to-end yet — they're helping prove it out.
-4. **Private first.** Keep admin surfaces on the tailnet (Tailscale) or local;
+   user's real server; don't skip the gotchas. Prefer running an embedded script
+   over retyping its output by hand.
+4. **Verify with the assertions, don't just eyeball it.** If the pattern has an
+   \`assertions\` list, run every \`check\` (each exits 0 when it holds) and
+   report pass/fail per assertion; walk the user through any marked \`manual\`.
+   Don't declare success until the scriptable assertions pass.
+5. **Be honest about status.** If the pattern is \`experimental\`, tell the user
+   it hasn't been validated end-to-end yet — they're helping prove it out. Note
+   its \`tested_against\` version; if the user's app version differs, say so.
+6. **Private first.** Keep admin surfaces on the tailnet (Tailscale) or local;
    expose anything to the public internet only as a deliberate, named step.
-5. **Every deviation is a pattern bug.** If you had to do something the pattern
-   didn't mention — a missing dependency, a wrong port, an unclear step — note
-   it and offer to open a PR against the pattern's source. The source URL is in
-   the \`get_pattern\` result; patterns live at ${PATTERN_SOURCE_BASE_URL}.
-6. **No match? Say so plainly.** Don't invent a pattern or pretend one exists.
+7. **Every deviation is a pattern bug.** If you had to do something the pattern
+   didn't mention — a missing dependency, a wrong port, an unclear step, an
+   assertion that didn't match reality — note it and offer to open a PR against
+   the pattern's source. The source URL is in the \`get_pattern\` result;
+   patterns live at ${PATTERN_SOURCE_BASE_URL}.
+8. **No match? Say so plainly.** Don't invent a pattern or pretend one exists.
    Offer to draft a new one for contribution instead.`;
 
 export function registerPrompts(server: McpServer, patterns: Pattern[]): void {

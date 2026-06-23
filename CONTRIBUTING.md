@@ -14,6 +14,30 @@ A pattern must:
 - Include verification steps, gotchas, and maintenance notes (backups, updates, what breaks over time).
 - Be written in English, direct and practical. No marketing language.
 
+## Make it executable, not just readable
+
+A pattern is followed by agents as well as humans. Three optional frontmatter
+fields turn prose into a machine-checkable contract — use them wherever the work
+is genuinely scriptable, and keep prose for the GUI-bound steps that aren't:
+
+- **`inputs`** — the typed, deployment-specific parameters (domains, SMTP
+  creds, generated secrets). Declare each as an ENV-style `name` referenced as
+  `${NAME}` in steps and assertions. Mark sensitive ones `secret: true`; give
+  ones that should be machine-generated a `generate:` command (e.g.
+  `openssl rand -hex 32`). This separates the recipe from the inventory, so the
+  env block can be generated rather than fat-fingered.
+- **`assertions`** — the executable form of the Verification section. Each has a
+  kebab-case `id`, a `description`, and **exactly one** of: a `check` (a shell
+  command that exits 0 when the assertion holds, may reference `${INPUT}`s) or
+  `manual: true` (for checks only a human can do — GUI/visual). Be honest:
+  `manual: true` is the right call for "click Deploy" or "vote from a phone".
+- **`tested_against`** — `app_version` + `verified` date (quote it:
+  `"2026-06-22"`) + optional `upstream_docs`, so staleness is detectable.
+
+The validator enforces uniqueness of input names and assertion ids, the
+check-XOR-manual rule, and that every `${INPUT}` an assertion references is a
+declared input. Aim for at least one scriptable assertion per pattern.
+
 ## The declaration: you ran it
 
 Every pattern PR — new pattern or substantive change — must include this declaration in the PR description:
@@ -33,9 +57,9 @@ When an app's recommended setup changes in a breaking way, bump `version` in the
 ## How to submit a pattern
 
 1. Fork the repo and create a branch.
-2. Copy the frontmatter structure from an existing pattern in [`patterns/`](patterns/). Every field is required and validated against [`schema/pattern.schema.json`](schema/pattern.schema.json).
+2. Copy the frontmatter structure from an existing pattern in [`patterns/`](patterns/). The core fields are required; `inputs`, `assertions`, and `tested_against` are optional but expected wherever the pattern has scriptable parts. All of it is validated against [`schema/pattern.schema.json`](schema/pattern.schema.json).
 3. Name the file `patterns/<id>.md` where `<id>` equals the `id` field (kebab-case).
-4. Follow the body structure convention: **Context → Decisions explained → Step-by-step → Verification → Gotchas → Maintenance notes**.
+4. Follow the body structure convention: **Context → Decisions explained → Step-by-step → Verification → Gotchas → Maintenance notes**. Where you declared `inputs`/`assertions`, surface them in the body too — a script that generates the env from the inputs, and a `verify.sh` that runs the scriptable assertions.
 5. Set `status: experimental` — all new patterns start there.
 6. Validate locally: `npm install && npx tsx scripts/validate-patterns.ts`.
 7. Open a PR. The template asks for the run-it-yourself declaration and your reasoning on alternatives.

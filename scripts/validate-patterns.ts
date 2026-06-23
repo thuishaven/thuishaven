@@ -10,6 +10,9 @@
  *   3. The `id` field matches the filename (without .md).
  *   4. Every id in `related` refers to an existing pattern file.
  *   5. The markdown body is non-empty.
+ *   6. v2 fields are internally consistent: unique input names, unique
+ *      assertion ids, each assertion has exactly one of check/manual, and
+ *      every ${INPUT} an assertion references is a declared input.
  *
  * Exit code 0 when all patterns pass, 1 on any failure.
  *
@@ -29,6 +32,8 @@ const SCHEMA_PATH = join(REPO_ROOT, "schema", "pattern.schema.json");
 interface Frontmatter {
   id?: unknown;
   related?: unknown;
+  inputs?: unknown;
+  assertions?: unknown;
   [key: string]: unknown;
 }
 
@@ -49,6 +54,72 @@ function formatAjvError(error: ErrorObject): string {
     detail += ` (unexpected key: "${String(error.params["additionalProperty"])}")`;
   }
   return `${path} ${detail}`;
+}
+
+interface InputSpec {
+  name?: unknown;
+}
+interface AssertionSpec {
+  id?: unknown;
+  check?: unknown;
+  manual?: unknown;
+}
+
+/**
+ * Semantic checks for the v2 fields the JSON Schema can't express (uniqueness,
+ * check XOR manual, ${INPUT} references resolving to a declared input).
+ * Returns human-readable problem strings; empty when all good.
+ */
+function checkV2Fields(frontmatter: Frontmatter): string[] {
+  const problems: string[] = [];
+
+  const inputNames = new Set<string>();
+  if (Array.isArray(frontmatter.inputs)) {
+    for (const raw of frontmatter.inputs) {
+      const name = (raw as InputSpec)?.name;
+      if (typeof name === "string") {
+        if (inputNames.has(name)) {
+          problems.push(`duplicate input name "${name}"`);
+        }
+        inputNames.add(name);
+      }
+    }
+  }
+
+  if (Array.isArray(frontmatter.assertions)) {
+    const ids = new Set<string>();
+    for (const raw of frontmatter.assertions) {
+      const a = raw as AssertionSpec;
+      const id = typeof a?.id === "string" ? a.id : "(unnamed)";
+
+      if (typeof a?.id === "string") {
+        if (ids.has(a.id)) problems.push(`duplicate assertion id "${a.id}"`);
+        ids.add(a.id);
+      }
+
+      const hasCheck = typeof a?.check === "string" && a.check.length > 0;
+      const isManual = a?.manual === true;
+      if (hasCheck && isManual) {
+        problems.push(`assertion "${id}" has both check and manual (pick one)`);
+      } else if (!hasCheck && !isManual) {
+        problems.push(`assertion "${id}" needs either a check or manual: true`);
+      }
+
+      if (hasCheck) {
+        const referenced = (a.check as string).match(/\$\{([A-Z][A-Z0-9_]*)\}/g) ?? [];
+        for (const token of referenced) {
+          const name = token.slice(2, -1);
+          if (!inputNames.has(name)) {
+            problems.push(
+              `assertion "${id}" references \${${name}} which is not a declared input`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  return problems;
 }
 
 function loadPatternFile(filePath: string): PatternFile {
@@ -140,6 +211,8 @@ function main(): void {
       if (pattern.body.trim().length === 0) {
         errors.push("markdown body is empty");
       }
+
+      errors.push(...checkV2Fields(pattern.frontmatter));
     }
 
     if (errors.length > 0) {

@@ -55,6 +55,44 @@ const patterns = defineCollection({
       prerequisites: z.array(z.string().regex(kebab)),
       estimated_time_minutes: z.number().int().min(1),
       gotchas: z.array(z.string().min(1)),
+      tested_against: z
+        .object({
+          app_version: z.string().min(1),
+          verified: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          upstream_docs: z.string().regex(/^https?:\/\//).optional(),
+        })
+        .strict()
+        .optional(),
+      inputs: z
+        .array(
+          z
+            .object({
+              name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+              description: z.string().min(1),
+              example: z.string().optional(),
+              default: z.string().optional(),
+              required: z.boolean().optional(),
+              secret: z.boolean().optional(),
+              generate: z.string().optional(),
+              format: z
+                .enum(["string", "email", "url", "hostname", "integer"])
+                .optional(),
+            })
+            .strict(),
+        )
+        .optional(),
+      assertions: z
+        .array(
+          z
+            .object({
+              id: z.string().regex(kebab),
+              description: z.string().min(1),
+              check: z.string().optional(),
+              manual: z.boolean().optional(),
+            })
+            .strict(),
+        )
+        .optional(),
       related: z.array(z.string().regex(kebab)),
     })
     .strict(),

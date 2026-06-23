@@ -80,6 +80,32 @@ const sidebarHeading =
         </div>
 
         {
+          data.tested_against && (
+            <div>
+              <h2 class={sidebarHeading}>Tested against</h2>
+              <p class="mt-1.5 text-slate-600 dark:text-slate-400">
+                <span class="font-medium text-slate-800 dark:text-slate-300">
+                  {data.recommendation.app} {data.tested_against.app_version}
+                </span>
+                {" · verified "}
+                {data.tested_against.verified}
+                {data.tested_against.upstream_docs && (
+                  <>
+                    {" · "}
+                    <a
+                      href={data.tested_against.upstream_docs}
+                      class="text-harbor-600 hover:underline dark:text-harbor-400"
+                    >
+                      docs
+                    </a>
+                  </>
+                )}
+              </p>
+            </div>
+          )
+        }
+
+        {
           data.prerequisites.length > 0 && (
             <div>
               <h2 class={sidebarHeading}>Prerequisites</h2>
@@ -95,12 +121,67 @@ const sidebarHeading =
         }
 
         {
+          data.inputs && data.inputs.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Inputs</h2>
+              <ul class="mt-1.5 space-y-1.5 text-slate-600 dark:text-slate-400">
+                {data.inputs.map((i) => (
+                  <li>
+                    <code class="text-xs text-slate-800 dark:text-slate-300">
+                      {i.name}
+                    </code>
+                    {i.generate ? (
+                      <span class="ml-1 text-xs text-harbor-600 dark:text-harbor-400">
+                        generated
+                      </span>
+                    ) : i.required === false ? (
+                      <span class="ml-1 text-xs text-slate-400">optional</span>
+                    ) : null}
+                    {i.secret && (
+                      <span class="ml-1 text-xs text-amber-600 dark:text-amber-400">
+                        secret
+                      </span>
+                    )}
+                    <span class="block text-xs">{i.description}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
           data.gotchas.length > 0 && (
             <div>
               <h2 class={sidebarHeading}>Gotchas</h2>
               <ul class="mt-1.5 list-inside list-disc space-y-1 text-slate-600 dark:text-slate-400">
                 {data.gotchas.map((g) => (
                   <li>{g}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        {
+          data.assertions && data.assertions.length > 0 && (
+            <div>
+              <h2 class={sidebarHeading}>Assertions</h2>
+              <ul class="mt-1.5 space-y-1.5 text-slate-600 dark:text-slate-400">
+                {data.assertions.map((a) => (
+                  <li class="flex gap-2">
+                    <span
+                      class={
+                        a.manual
+                          ? "text-xs text-slate-400"
+                          : "text-xs text-harbor-600 dark:text-harbor-400"
+                      }
+                      title={a.manual ? "manual check" : "scripted check"}
+                    >
+                      {a.manual ? "manual" : "auto"}
+                    </span>
+                    <span class="text-xs">{a.description}</span>
+                  </li>
                 ))}
               </ul>
             </div>

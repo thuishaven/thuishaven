@@ -1,7 +1,7 @@
 ---
 id: dokploy-bootstrap
 title: "Set up a fresh Ubuntu server for self-hosting"
-version: 1
+version: 2
 status: experimental
 category: bootstrap
 tags: [dokploy, docker, traefik, tailscale, lets-encrypt, server-setup]
@@ -33,6 +33,55 @@ prerequisites:
   - tailscale-account
 
 estimated_time_minutes: 45
+
+tested_against:
+  app_version: "0.29.x"
+  verified: "2026-06-22"
+  upstream_docs: https://docs.dokploy.com/docs/core
+
+inputs:
+  - name: TAILSCALE_AUTHKEY
+    description: "Pre-approved Tailscale auth key (tskey-auth-...) for non-interactive node join"
+    example: tskey-auth-XXXXXXXX
+    secret: true
+    required: true
+  - name: ADVERTISE_ADDR
+    description: "Swarm advertise address; needed on VPSes with only a public IP"
+    example: 203.0.113.10
+    required: false
+  - name: APP_DOMAIN
+    description: "Domain (or wildcard base) future apps are served under"
+    example: apps.example.com
+    format: hostname
+    required: true
+  - name: LETSENCRYPT_EMAIL
+    description: "Contact email for the Traefik ACME account (cert expiry notices)"
+    example: you@example.com
+    format: email
+    required: true
+
+assertions:
+  - id: tailscale-connected
+    description: "The server is up on the tailnet"
+    check: "tailscale status >/dev/null"
+  - id: dokploy-services-up
+    description: "Dokploy's Swarm services are running"
+    check: "docker service ls --format '{{.Name}}' | grep -q '^dokploy'"
+  - id: traefik-running
+    description: "The Traefik container is up"
+    check: "docker ps --format '{{.Names}}' | grep -q dokploy-traefik"
+  - id: app-dns-resolves
+    description: "App DNS points at this server"
+    check: "dig +short ${APP_DOMAIN} | grep -q ."
+  - id: admin-ui-private
+    description: "From outside the tailnet, http://<public-ip>:3000 times out (UI not public)"
+    manual: true
+  - id: backup-object-created
+    description: "A manual Web Server backup produces an object in the S3 bucket"
+    manual: true
+  - id: survives-reboot
+    description: "After `reboot`, the UI and all services return without intervention"
+    manual: true
 
 gotchas:
   - "Bare `tailscale up` blocks on an interactive browser login — on a headless server or an agent-driven run it hangs/loops; use `tailscale up --authkey=...` with a pre-generated key instead"
@@ -208,13 +257,27 @@ dpkg-reconfigure -plow unattended-upgrades   # choose Yes
 
 ## Verification
 
-1. `tailscale status` shows the server connected.
-2. `http://<tailnet-ip>:3000` (or your chosen access path) loads the Dokploy UI and your admin login works.
-3. From outside the tailnet, `http://<public-ip>:3000` times out.
-4. `docker service ls` shows `dokploy` and `dokploy-postgres` and `dokploy-redis` replicated `1/1`; `docker ps` shows `dokploy-traefik` running.
-5. `dig +short <your-app-domain>` returns the server's public IP.
-6. The S3 destination test in Dokploy settings succeeds, and a manual run of the Web Server backup produces an object in your bucket.
-7. Reboot the server (`reboot`); after it comes back, the UI and all services return without manual intervention.
+The `assertions` in the frontmatter are the source of truth. The scriptable ones
+run **on the server** and exit non-zero on failure:
+
+```bash
+#!/usr/bin/env bash
+# verify.sh — run on the bootstrapped server. APP_DOMAIN must be exported.
+set -euo pipefail
+: "${APP_DOMAIN:?}"
+tailscale status >/dev/null                                       && echo "✓ tailscale-connected"
+docker service ls --format '{{.Name}}' | grep -q '^dokploy'       && echo "✓ dokploy-services-up"
+docker ps --format '{{.Names}}' | grep -q dokploy-traefik         && echo "✓ traefik-running"
+dig +short "$APP_DOMAIN" | grep -q .                              && echo "✓ app-dns-resolves"
+echo "All scriptable assertions passed."
+```
+
+The rest are `manual: true` because they need a second network vantage point or a
+physical reboot:
+
+- **admin-ui-private** — from outside the tailnet (e.g. phone on mobile data), `http://<public-ip>:3000` must time out. This is the security-critical check; verify it from an actually-external network, not by reading firewall rules.
+- **backup-object-created** — the S3 destination test in Dokploy succeeds and a manual Web Server backup produces an object in your bucket.
+- **survives-reboot** — `reboot` the server; after it comes back, the UI and all services return without manual intervention.
 
 The real end-to-end verification is deploying a first app with a public domain and watching the certificate get issued — that's the next pattern: [scheduling-tool](scheduling-tool.md).
 
