@@ -1,18 +1,16 @@
 name: Deploy MCP server
 
-# Manual trigger only for now — switch to the push trigger below once the
-# Cloudflare account is set up and CI deployments are deliberately enabled
-# (see docs/deployment.md):
-#
-#   push:
-#     branches: [main]
-#     paths:
-#       - "mcp-server/**"
-#       - "patterns/**"
-#       - "schema/**"
-#       - ".github/workflows/deploy-mcp.yml"
+# Auto-deploys on push to main when MCP-affecting files change; also runnable
+# manually via the Actions tab (see docs/deployment.md).
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "mcp-server/**"
+      - "patterns/**"
+      - "schema/**"
+      - ".github/workflows/deploy-mcp.yml"
 
 jobs:
   deploy:
