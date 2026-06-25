@@ -63,8 +63,8 @@ Or from source: `cd mcp-server && npm install && npm run start:stdio` (or `start
 
 | Pattern | What it solves | Status |
 |---|---|---|
-| [dokploy-bootstrap](patterns/dokploy-bootstrap.md) | Set up a fresh Ubuntu server for self-hosting | experimental |
-| [scheduling-tool](patterns/scheduling-tool.md) | Date picker for sharing with friends | experimental |
+| [dokploy-bootstrap](patterns/dokploy-bootstrap.md) | Set up a fresh Ubuntu server for self-hosting | stable |
+| [scheduling-tool](patterns/scheduling-tool.md) | Date picker for sharing with friends | stable |
 | [vaultwarden-family](patterns/vaultwarden-family.md) | Move your family off 1Password to self-hosted Vaultwarden | experimental |
 
 `experimental` means the pattern is written but not yet validated end-to-end by a maintainer; `stable` means it has been. Patterns are plain markdown with structured frontmatter — readable here, rendered at [thuishaven.dev/patterns](https://thuishaven.dev/patterns/), served over MCP.

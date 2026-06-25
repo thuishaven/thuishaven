@@ -2,7 +2,7 @@
 id: scheduling-tool
 title: "Date picker for sharing with friends"
 version: 2
-status: experimental
+status: stable
 category: collaboration
 tags: [scheduling, polls, calendar, dates, no-account-needed, rallly]
 maintainer: hiddevh
@@ -134,7 +134,7 @@ related: [dokploy-bootstrap, vaultwarden-family]
 
 Use this pattern when you want a Doodle replacement: you create a poll with candidate dates, send one link, and friends or family pick what works for them — no accounts, no ads, no SaaS. Rallly is a polished Next.js app that does precisely this. You (the poll creator) get the one registered account; participants just click the link and vote.
 
-Written against Rallly v4.10 and run end-to-end on a fresh Hetzner VPS (Dokploy + Resend, June 2026); the deviations from that run are folded in below. Still `experimental` pending a clean re-run against these fixes.
+Written against Rallly v4.10 and validated end-to-end by the maintainer on a fresh Hetzner VPS (Dokploy + Resend, June 2026) via the Dokploy UI path; the deviations from that run are folded in below, which is why this pattern is `stable`. (The newer agent-driven Dokploy-API deploy recipe is documented but not yet proven end-to-end — see issue #2.)
 
 ## Decisions explained
 

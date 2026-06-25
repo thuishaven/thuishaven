@@ -2,7 +2,7 @@
 id: dokploy-bootstrap
 title: "Set up a fresh Ubuntu server for self-hosting"
 version: 2
-status: experimental
+status: stable
 category: bootstrap
 tags: [dokploy, docker, traefik, tailscale, lets-encrypt, server-setup]
 maintainer: hiddevh
@@ -109,7 +109,7 @@ related: [scheduling-tool, vaultwarden-family]
 
 Use this pattern once per server, before deploying any apps. It takes a fresh Ubuntu machine to a state where every other Thuishaven pattern can assume: Dokploy running, its admin UI reachable only over Tailscale, Traefik ready to issue Let's Encrypt certificates for apps you choose to expose publicly, DNS prepared, and backups configured. Works on a VPS (Hetzner, DigitalOcean, etc.) or a home server.
 
-This pattern is `experimental`: written carefully against the official documentation (verified June 2026, Dokploy v0.29.x), but expect rough edges until it has been validated end-to-end.
+This pattern is `stable`: validated end-to-end by the maintainer on a fresh Hetzner VPS (Dokploy v0.29.8, June 2026), with the findings from that run folded in. The agent-driven Dokploy-API path (step 9) is the one part still documented-but-unproven — see issue #2.
 
 ## Decisions explained
 
@@ -217,7 +217,7 @@ To temporarily get it back: same command with `--publish-add`. With the port unp
 ssh -L 3000:localhost:3000 root@<tailnet-ip>   # then open http://localhost:3000
 ```
 
-Note: with Option B, `localhost:3000` forwarding works because host-mode published ports were removed but the service still listens inside; if the forward doesn't connect, re-add the publish restricted by Option A-style firewalling instead. This is exactly the kind of edge this experimental pattern needs validation on.
+Note: with Option B, `localhost:3000` forwarding works because host-mode published ports were removed but the service still listens inside; if the forward doesn't connect, re-add the publish restricted by Option A-style firewalling instead.
 
 Verify from a machine **outside** your tailnet (e.g. phone on mobile data): `http://<public-ip>:3000` must time out.
 

@@ -82,8 +82,8 @@ pattern's "fresh Ubuntu server" premise.
 
 | Pattern (`id`) | Solves | Category | Status |
 |---|---|---|---|
-| `dokploy-bootstrap` | Prepare a fresh Ubuntu server for self-hosting | bootstrap | experimental |
-| `scheduling-tool` | Date picker / poll to share with friends (Rallly) | collaboration | experimental |
+| `dokploy-bootstrap` | Prepare a fresh Ubuntu server for self-hosting | bootstrap | stable |
+| `scheduling-tool` | Date picker / poll to share with friends (Rallly) | collaboration | stable |
 | `vaultwarden-family` | Move a family off 1Password to Vaultwarden | security | experimental |
 
 Always fetch the live list with `list_patterns` — this table can go stale.
