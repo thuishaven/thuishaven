@@ -41,7 +41,10 @@ const WORKFLOW = `How to work with Thuishaven patterns:
 3. **Read the whole pattern, then follow it verbatim.** Use \`get_pattern\` (or
    \`get_setup_guide\` to bootstrap a server). Execute the steps in order on the
    user's real server; don't skip the gotchas. Prefer running an embedded script
-   over retyping its output by hand.
+   over retyping its output by hand. When a pattern describes deploy steps as
+   Dokploy UI clicks but also gives an "Agent-executable deploy (Dokploy API)"
+   recipe, drive the API yourself with the user's \`DOKPLOY_API_TOKEN\` instead of
+   handing the user a list of buttons to press.
 4. **Verify with the assertions, don't just eyeball it.** If the pattern has an
    \`assertions\` list, run every \`check\` (each exits 0 when it holds) and
    report pass/fail per assertion; walk the user through any marked \`manual\`.

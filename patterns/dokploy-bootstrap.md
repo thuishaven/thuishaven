@@ -35,8 +35,8 @@ prerequisites:
 estimated_time_minutes: 45
 
 tested_against:
-  app_version: "0.29.x"
-  verified: "2026-06-22"
+  app_version: "0.29.8"
+  verified: "2026-06-24"
   upstream_docs: https://docs.dokploy.com/docs/core
 
 inputs:
@@ -49,6 +49,10 @@ inputs:
     description: "Swarm advertise address; needed on VPSes with only a public IP"
     example: 203.0.113.10
     required: false
+  - name: SERVER_IP
+    description: "The server's public IPv4 address — used to confirm app DNS points at this box"
+    example: 203.0.113.10
+    required: true
   - name: APP_DOMAIN
     description: "Domain (or wildcard base) future apps are served under"
     example: apps.example.com
@@ -59,6 +63,10 @@ inputs:
     example: you@example.com
     format: email
     required: true
+  - name: DOKPLOY_API_TOKEN
+    description: "Dokploy API token (Settings → API/Profile) so an agent can create and deploy apps over HTTP instead of clicking the UI. Needed for the agent-driven deploy path in app patterns."
+    secret: true
+    required: false
 
 assertions:
   - id: tailscale-connected
@@ -70,9 +78,9 @@ assertions:
   - id: traefik-running
     description: "The Traefik container is up"
     check: "docker ps --format '{{.Names}}' | grep -q dokploy-traefik"
-  - id: app-dns-resolves
-    description: "App DNS points at this server"
-    check: "dig +short ${APP_DOMAIN} | grep -q ."
+  - id: app-dns-points-at-server
+    description: "App DNS resolves to THIS server's IP. Note: if you CDN-proxy the record (Cloudflare orange-cloud) it resolves to the CDN, not the origin — this check is expected to fail then, which is fine."
+    check: "dig +short ${APP_DOMAIN} | grep -qF ${SERVER_IP}"
   - id: admin-ui-private
     description: "From outside the tailnet, http://<public-ip>:3000 times out (UI not public)"
     manual: true
@@ -226,6 +234,13 @@ A wildcard subdomain (`*.apps.example.com`) is the low-friction choice: every fu
 
 Wait for propagation before assigning domains in Dokploy (`dig +short test.apps.example.com` should return your server IP). If you add a domain in Dokploy before DNS resolves, the Let's Encrypt challenge fails; fix by recreating the domain or restarting Traefik after DNS is live.
 
+**If your DNS is proxied through a CDN (Cloudflare orange-cloud):** a proxied record resolves to the CDN's IPs, not your origin, which has two consequences the rest of this pattern assumes away:
+
+- **First certificate issuance.** Traefik uses the Let's Encrypt HTTP-01 challenge; through a proxy it can fail depending on the proxy's SSL/"Always Use HTTPS" settings. Set the record to **DNS-only (grey-cloud)** while issuing the first certificate, then re-enable the proxy.
+- **SSL mode once proxied.** Set the CDN's SSL mode to **Full (strict)**. **Flexible** terminates TLS at the CDN and talks HTTP to the origin, which causes an infinite redirect loop once Traefik forces HTTPS.
+
+A proxied record will (correctly) make the `app-dns-points-at-server` assertion fail, since it resolves to the CDN — expected, not a problem.
+
 ### 7. Set the Let's Encrypt email
 
 Traefik needs a contact email for the ACME account (expiry notices land there):
@@ -246,7 +261,24 @@ Dokploy has built-in scheduled backups to any S3-compatible storage (Backblaze B
 
 Off-server backups are non-negotiable; a backup on the server it protects is just a copy waiting to die with the disk.
 
-### 9. Keep the server itself patched
+### 9. Enable agent-driven deploys via the Dokploy API (recommended)
+
+The rest of Thuishaven's app patterns describe deploys as Dokploy UI clicks, but Dokploy exposes a full authenticated HTTP API — so an agent can create projects, databases, and applications, set environment, add domains, and deploy **without a human driving the mouse**. Set this up once here and the app patterns can assume it, exactly like they assume `tailscale-connected`.
+
+1. In the Dokploy UI: **Settings → API/Profile** → generate an API token. Store it as `DOKPLOY_API_TOKEN` (treat it as root-equivalent — it can deploy arbitrary containers).
+2. The API lives on the same origin as the UI (reach it over the tailnet, e.g. `http://<tailnet-ip>:3000`). Authenticate with the token; confirm access:
+
+```bash
+# base URL = the Dokploy UI origin, reachable over the tailnet
+export DOKPLOY_URL="http://<tailnet-ip>:3000"
+curl -fsS "$DOKPLOY_URL/api/health"                                  # -> 200, no auth
+curl -fsS -H "x-api-key: $DOKPLOY_API_TOKEN" "$DOKPLOY_URL/api/project.all" >/dev/null \
+  && echo "✓ API token works"
+```
+
+The exact endpoint set and request bodies are versioned — read your install's live schema at `$DOKPLOY_URL/api/swagger` (it requires auth). The app patterns list the call sequence they need; this step is just the shared auth + base URL they build on.
+
+### 10. Keep the server itself patched
 
 Dokploy manages apps, not the OS. Enable unattended security updates:
 
@@ -262,13 +294,13 @@ run **on the server** and exit non-zero on failure:
 
 ```bash
 #!/usr/bin/env bash
-# verify.sh — run on the bootstrapped server. APP_DOMAIN must be exported.
+# verify.sh — run on the bootstrapped server. APP_DOMAIN and SERVER_IP must be exported.
 set -euo pipefail
-: "${APP_DOMAIN:?}"
+: "${APP_DOMAIN:?} ${SERVER_IP:?}"
 tailscale status >/dev/null                                       && echo "✓ tailscale-connected"
 docker service ls --format '{{.Name}}' | grep -q '^dokploy'       && echo "✓ dokploy-services-up"
 docker ps --format '{{.Names}}' | grep -q dokploy-traefik         && echo "✓ traefik-running"
-dig +short "$APP_DOMAIN" | grep -q .                              && echo "✓ app-dns-resolves"
+dig +short "$APP_DOMAIN" | grep -qF "$SERVER_IP"                  && echo "✓ app-dns-points-at-server"
 echo "All scriptable assertions passed."
 ```
 
@@ -289,6 +321,8 @@ The real end-to-end verification is deploying a first app with a public domain a
 - **`ADVERTISE_ADDR` on public-IP-only servers.** The installer auto-detects only RFC1918 private addresses. Cloud servers without a private interface need `ADVERTISE_ADDR` exported explicitly or the install fails.
 - **DNS-before-domain ordering.** Adding a domain in Dokploy while DNS still points elsewhere burns a failed ACME challenge. Let's Encrypt also rate-limits: repeated failures can lock you out of issuance for that hostname temporarily (and 5 duplicate certificates per week per cert set).
 - **Existing containers are invisible to Dokploy.** Pre-existing containers keep running but don't appear as Dokploy projects. Plan to re-create them as Dokploy services over time, or accept managing them separately.
+- **Provider egress limits on mail ports.** Many VPS providers (including Hetzner) block *outbound* TCP 25 and 465 to curb spam, while leaving 587 open. This bites any app you later deploy that sends mail: a service configured for implicit-TLS SMTP on 465 will just hang. Prefer port 587 (STARTTLS), or your provider/ESP's alternate submission port.
+- **CDN-proxied DNS.** A Cloudflare orange-clouded record resolves to the CDN, not your origin: it can break first Let's Encrypt issuance (use DNS-only while issuing) and, on SSL mode "Flexible", cause an HTTPS redirect loop (use Full strict). See step 6.
 
 ## Maintenance notes
 

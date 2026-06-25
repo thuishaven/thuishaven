@@ -43,7 +43,11 @@ slash-command prompts (`/mcp__thuishaven__self_host`,
 3. **Read the whole pattern, then follow it verbatim.** Use `get_pattern` (or
    `get_setup_guide` to bootstrap a server). Execute the steps in order on the
    user's real server. Don't skip the gotchas — they're the hard-won part.
-   Prefer running an embedded script over retyping its output by hand.
+   Prefer running an embedded script over retyping its output by hand. **Drive
+   deploys via the Dokploy API, not the mouse:** when a pattern offers an
+   "Agent-executable deploy (Dokploy API)" recipe, use the user's
+   `DOKPLOY_API_TOKEN` to create/configure/deploy over HTTP yourself rather than
+   handing them GUI clicks. Set the token up once via `dokploy-bootstrap` step 9.
 4. **Verify with the assertions, don't just eyeball it.** If the pattern has an
    `assertions` list, run every `check` (each exits 0 when it holds) and report
    pass/fail per assertion; walk the user through any marked `manual`. Don't

@@ -239,6 +239,38 @@ chmod +x /usr/local/bin/vaultwarden-backup.sh
 
 Then get the archives **off the server** — sync `/var/backups/vaultwarden` to external storage (rclone to any S3/Backblaze/Drive target, or a restic repository). A backup on the same disk as the database is not a backup. The archive contains your encrypted vault plus `config.json` (which holds the admin token hash) — treat it as sensitive even though vault items are ciphertext.
 
+## Agent-executable deploy (Dokploy API)
+
+Steps 2–4 are written as Dokploy UI clicks for a human; an agent should drive the
+create/configure/deploy over the Dokploy API instead. Assumes `DOKPLOY_API_TOKEN`
+and `DOKPLOY_URL` from [dokploy-bootstrap](dokploy-bootstrap.md) step 9. The
+sequence is stable; confirm exact endpoint and field names against
+`$DOKPLOY_URL/api/swagger` (versioned — tested against Dokploy 0.29.8).
+
+```
+auth header:  x-api-key: $DOKPLOY_API_TOKEN     base: $DOKPLOY_URL/api
+
+1. project.create                  { name: "family" }                      -> projectId
+2. application.create              { projectId, name: "vaultwarden" }       -> applicationId
+3. application.saveDockerProvider  { applicationId,
+                                     dockerImage: "vaultwarden/server:1.36.0" }
+4. mounts.create                   { serviceId: applicationId, type: "volume",
+                                     mountPath: "/data", ... }    # persists /data
+5. application.saveEnvironment     { applicationId, env: <the env block from step 3> }
+                                   # remember DOMAIN=https://${DOMAIN}, ADMIN_TOKEN
+                                   # is the argon2 hash from step 1
+6. domain.create                   { applicationId, host: $DOMAIN,
+                                     port: 80, https: true,
+                                     certificateType: "letsencrypt" }
+7. application.deploy              { applicationId }
+```
+
+Steps 1 (generate admin token), 5–9 (web-vault account/org/clients/migration) stay
+human — they're inherently GUI/client actions. As with the database in
+[scheduling-tool](scheduling-tool.md), Dokploy gives the application a random
+container name; resolve `applicationId → appName` via `application.one` to find its
+logs.
+
 ## Verification
 
 The `assertions` in the frontmatter are the source of truth. The two scriptable
