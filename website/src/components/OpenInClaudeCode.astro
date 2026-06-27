@@ -14,9 +14,12 @@
 interface Props {
   id: string;
   title: string;
+  /** "full" = boxed CTA with copy fallback (detail pages); "compact" = a single
+   *  deep-link button for dense lists like the pattern cards. */
+  variant?: "full" | "compact";
 }
 
-const { id, title } = Astro.props;
+const { id, title, variant = "full" } = Astro.props;
 
 const MCP_URL = "https://mcp.thuishaven.dev/mcp";
 
@@ -32,6 +35,16 @@ const deepLink = `claude-cli://open?q=${encodeURIComponent(prompt)}`;
 const copyText = `claude mcp add --transport http thuishaven ${MCP_URL}\nclaude ${JSON.stringify(prompt)}`;
 ---
 
+{
+  variant === "compact" ? (
+    <a
+      href={deepLink}
+      class="relative z-10 inline-flex w-fit items-center gap-1 rounded-md border border-harbor-300 px-2.5 py-1 text-xs font-medium text-harbor-700 hover:bg-harbor-50 dark:border-harbor-800 dark:text-harbor-300 dark:hover:bg-harbor-950"
+      title="Opens Claude Code with this recipe pre-filled; nothing runs until you press Enter"
+    >
+      Open in Claude Code →
+    </a>
+  ) : (
 <div
   class="not-prose mb-6 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
   data-oicc
@@ -57,6 +70,8 @@ const copyText = `claude mcp add --transport http thuishaven ${MCP_URL}\nclaude 
     review the prompt and press Enter. No Claude Code? Use <strong>Copy command</strong>.
   </p>
 </div>
+  )
+}
 
 <script>
   document.querySelectorAll<HTMLElement>("[data-oicc]").forEach((root) => {

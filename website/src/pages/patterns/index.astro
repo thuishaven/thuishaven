@@ -72,7 +72,7 @@ const selectClass =
     // Tiny dependency-free filtering over data attributes set at build time.
     const form = document.getElementById("filters");
     const cards = Array.from(
-      document.querySelectorAll("#pattern-grid > a[data-category]"),
+      document.querySelectorAll("#pattern-grid > [data-category]"),
     );
     const noResults = document.getElementById("no-results");
 
