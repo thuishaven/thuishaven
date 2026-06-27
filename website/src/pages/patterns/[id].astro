@@ -2,6 +2,7 @@
 import { getCollection, render } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
+import OpenInClaudeCode from "../../components/OpenInClaudeCode.astro";
 
 export async function getStaticPaths() {
   const patterns = await getCollection("patterns");
@@ -29,6 +30,7 @@ const sidebarHeading =
   <div class="flex flex-col gap-10 lg:flex-row">
     <!-- Main content -->
     <article class="min-w-0 flex-1">
+      <OpenInClaudeCode id={pattern.id} title={data.title} />
       {
         data.status === "experimental" && (
           <p class="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">

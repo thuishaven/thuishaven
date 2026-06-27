@@ -1,0 +1,79 @@
+---
+/**
+ * "Open in Claude Code" — a per-pattern call-to-action.
+ *
+ * The primary button is a `claude-cli://` deep link: it opens Claude Code with
+ * the prompt PRE-FILLED but inert — nothing runs until the user reviews it and
+ * presses Enter (Claude Code shows a "Prompt from an external link" warning).
+ * We pass only `q` (never settings) to stay on the safe subset of the scheme.
+ *
+ * The deep link needs Claude Code installed with its URL scheme registered, and
+ * some OS/browser combos block custom schemes, so a copy-to-clipboard fallback
+ * (the `claude mcp add` line + the prompt) is always offered.
+ */
+interface Props {
+  id: string;
+  title: string;
+}
+
+const { id, title } = Astro.props;
+
+const MCP_URL = "https://mcp.thuishaven.dev/mcp";
+
+const prompt =
+  `Use the Thuishaven "${id}" pattern (${title}) to self-host this on my server. ` +
+  `If the Thuishaven MCP (${MCP_URL}) isn't connected, add it; then call ` +
+  `get_pattern for "${id}" and follow it, preferring the API-first deploy path ` +
+  `where the pattern offers one. Treat any deviation as a pattern bug.`;
+
+const deepLink = `claude-cli://open?q=${encodeURIComponent(prompt)}`;
+
+// What the fallback copies: connect the MCP, then run the prompt.
+const copyText = `claude mcp add --transport http thuishaven ${MCP_URL}\nclaude ${JSON.stringify(prompt)}`;
+---
+
+<div
+  class="not-prose mb-6 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+  data-oicc
+  data-copy={copyText}
+>
+  <div class="flex flex-wrap items-center gap-3">
+    <a
+      href={deepLink}
+      class="rounded-lg bg-harbor-600 px-4 py-2 text-sm font-medium text-white hover:bg-harbor-700 dark:bg-harbor-500 dark:text-slate-950 dark:hover:bg-harbor-400"
+    >
+      Open in Claude Code
+    </a>
+    <button
+      type="button"
+      data-oicc-copy
+      class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+    >
+      Copy command
+    </button>
+  </div>
+  <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+    Opens Claude Code with this recipe loaded — it won't run anything until you
+    review the prompt and press Enter. No Claude Code? Use <strong>Copy command</strong>.
+  </p>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-oicc]").forEach((root) => {
+    const btn = root.querySelector<HTMLButtonElement>("[data-oicc-copy]");
+    const text = root.dataset.copy ?? "";
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const original = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied ✓";
+      } catch {
+        btn.textContent = "Copy failed — select manually";
+      }
+      window.setTimeout(() => {
+        btn.textContent = original;
+      }, 2000);
+    });
+  });
+</script>
