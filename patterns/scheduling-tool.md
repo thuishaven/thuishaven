@@ -152,24 +152,28 @@ Written against Rallly v4.10 and validated end-to-end by the maintainer on a fre
 
 Assumes a server bootstrapped with [dokploy-bootstrap](dokploy-bootstrap.md) and a DNS record for e.g. `dates.example.com` pointing at it.
 
-### 1. Create the Postgres database
+This pattern is **API-first**: the deploy is driven over the Dokploy HTTP API so an agent can run it end-to-end without a human in the UI. It uses `DOKPLOY_API_TOKEN` and `DOKPLOY_URL` from [dokploy-bootstrap](dokploy-bootstrap.md) step 9 (reach the API over the tailnet). A condensed click-through fallback for humans is at the end. The call **sequence** is stable; confirm exact endpoint names and request-body fields against your install's live schema at `$DOKPLOY_URL/api/swagger` (versioned — written against Dokploy 0.29.8; the API path itself is pending a clean end-to-end run, see issue #2).
 
-1. In Dokploy, create a project (e.g. `tools`), then add a **Database** service, type **Postgres**.
-2. Name it `rallly-db`, database name `rallly`, user `rallly`, and generate a strong password (no `@`, `:` or `/` characters — they'd need URL-encoding in the connection string).
-3. Use the default Postgres major version Dokploy offers (18 at time of writing; anything modern works — migrations run clean) and deploy it. Do **not** add a public port — the app reaches it over the internal Docker network.
-4. Copy the **exact** internal host from the database service's **Internal Connection** field — it is **not** just `rallly-db`; Dokploy appends a generated suffix (e.g. `rallly-db-pmqqwz`). That exact value is your `DB_HOST`.
+### 1. Create the project and Postgres
 
-### 2. Create the Rallly application
+```
+auth header:  x-api-key: $DOKPLOY_API_TOKEN     base: $DOKPLOY_URL/api
 
-1. In the same project, add an **Application** service named `rallly`.
-2. Provider: **Docker**, image `lukevella/rallly:4`. The `:4` tag pins the major version and picks up 4.x updates on redeploy.
+project.create   { name: "tools" }                                  -> projectId
+postgres.create  { projectId, name: "rallly-db", databaseName: "rallly",
+                   databaseUser: "rallly", databasePassword: $DB_PASSWORD }  -> postgresId
+postgres.deploy  { postgresId }
+postgres.one     { postgresId }   # read back DB_HOST = generated appName
+```
 
-### 3. Set environment variables
+`DB_HOST` is the service's **generated appName** (e.g. `rallly-db-pmqqwz`), **not** `rallly-db` — Dokploy appends a random suffix. Read it back from `postgres.one` and export it for the next step. Use the default Postgres major version (18 at time of writing; migrations run clean). Never give the database a public port.
 
-Don't hand-assemble these — the `inputs` in this pattern's frontmatter are the
-typed parameters, and the script below generates the env block from them so the
-naming traps (`SMTP_PWD` not `SMTP_PASSWORD`, the 32-char `SECRET_PASSWORD`
-minimum) can't be fat-fingered. Fill the inputs, then run:
+### 2. Generate the environment
+
+The `inputs` in this pattern's frontmatter are the typed parameters; this script
+turns them into the env block so the naming traps (`SMTP_PWD` not
+`SMTP_PASSWORD`, the 32-char `SECRET_PASSWORD` minimum) can't be fat-fingered.
+Export the inputs (including the `DB_HOST` from step 1), then run:
 
 ```bash
 #!/usr/bin/env bash
@@ -198,11 +202,9 @@ EOF
 echo "wrote rallly.env (SECRET_PASSWORD is ${#SECRET_PASSWORD} chars)"
 ```
 
-Paste the contents of `rallly.env` into the service's Environment tab and deploy.
-Several pattern gotchas are now enforced by the script instead of merely
-documented: `SMTP_SECURE` is derived from the port, `ALLOWED_EMAILS` /
-`INITIAL_ADMIN_EMAIL` are locked to you, and `SECRET_PASSWORD` is always long
-enough.
+The script enforces several gotchas instead of merely documenting them:
+`SMTP_SECURE` is derived from the port, `ALLOWED_EMAILS` / `INITIAL_ADMIN_EMAIL`
+are locked to you, and `SECRET_PASSWORD` is always long enough.
 
 Notes:
 
@@ -211,65 +213,49 @@ Notes:
 - **Sender domain must be verified.** Transactional providers only send *from* a domain you've verified with them. If your login address (`SUPPORT_EMAIL`) is on a different domain than the verified one, set `NOREPLY_EMAIL` to an address on the verified domain — otherwise the provider rejects the send and login mail never arrives, a silent failure that looks like a Rallly bug.
 - `ALLOWED_EMAILS` supports wildcards (`*@example.com`) if you later want to allow your whole domain.
 
-### 4. Add the domain and deploy
+### 3. Create, configure, and deploy the app
 
-1. In the service's Domains tab: add `dates.example.com`, container port `3000`, HTTPS with Let's Encrypt.
-2. Deploy. Database migrations run automatically on container start (`prisma migrate deploy`), so first boot takes a moment longer.
+```
+application.create              { projectId, name: "rallly" }            -> applicationId
+application.saveDockerProvider  { applicationId, dockerImage: "lukevella/rallly:4" }
+application.saveEnvironment     { applicationId, env: <contents of rallly.env> }
+domain.create                  { applicationId, host: $DOMAIN, port: 3000,
+                                 https: true, certificateType: "letsencrypt" }
+application.deploy             { applicationId }
+```
 
-> **CDN-proxied DNS:** if this domain is proxied through a CDN (e.g. Cloudflare orange-cloud), set it to **DNS-only** during first certificate issuance — the Let's Encrypt HTTP-01 challenge can fail through the proxy — then re-enable the proxy once the cert is issued (with SSL mode **Full (strict)**, never Flexible). See [dokploy-bootstrap](dokploy-bootstrap.md) step 6.
+- The image tag `lukevella/rallly:4` pins the major version and picks up 4.x updates on redeploy. Database migrations (`prisma migrate deploy`) run automatically on first boot, so it takes a moment longer.
+- Dokploy gives the **application** a fully random container name (e.g. `app-input-haptic-bandwidth-rux8uo`), unlike the database. To find its container/logs later, resolve `applicationId → appName` via `application.one` — don't `grep` for "rallly".
+- **CDN-proxied DNS:** if `$DOMAIN` is proxied through a CDN (Cloudflare orange-cloud), set it **DNS-only** during first certificate issuance (HTTP-01 can fail through the proxy), then re-enable the proxy with SSL mode **Full (strict)**, never Flexible. See [dokploy-bootstrap](dokploy-bootstrap.md) step 6.
+- After deploy, run the `verify.sh` from [Verification](#verification) against `$DOMAIN`.
 
-### 5. Register and claim admin
+### 4. Register and claim admin
 
 1. Open `https://dates.example.com` and **Register / create your account** — this triggers the first verification email (and is your SMTP smoke test). On a zero-user instance, **Login** for an unknown email is a silent no-op: only Register sends mail. If the email doesn't arrive, work the [email debug recipe](#when-the-login-email-doesnt-arrive) below before suspecting the deploy.
 2. Visit `https://dates.example.com/control-panel` — the user matching `INITIAL_ADMIN_EMAIL` can claim the admin role there. Login (not Register) is for return visits once your account exists.
 
-### 6. Create a first poll and share it
+### 5. Create a first poll and share it
 
 1. Create a poll with a few candidate dates.
 2. Open the participant link in a private browser window: you should be able to vote **without logging in**. That's the experience your friends get.
 
-### 7. Configure backups
+### 6. Configure backups
 
 The only state is in Postgres:
 
 1. In Dokploy, open the `rallly-db` service → **Backups**.
 2. Schedule a daily backup to the S3 destination configured during [dokploy-bootstrap](dokploy-bootstrap.md), and run the test backup once.
 
-## Agent-executable deploy (Dokploy API)
+### Manual UI fallback
 
-Steps 1–4 above are written as Dokploy UI clicks for a human. An agent should
-instead drive the same deploy over the Dokploy API — no mouse required. This
-assumes `DOKPLOY_API_TOKEN` and `DOKPLOY_URL` from [dokploy-bootstrap](dokploy-bootstrap.md)
-step 9 (reach the API over the tailnet). The call **sequence** is stable; confirm
-exact endpoint names and request-body fields against your install's live schema at
-`$DOKPLOY_URL/api/swagger` (it's versioned — tested against Dokploy 0.29.8).
+No API token, or prefer clicking? The same deploy in the Dokploy UI, condensed:
 
-```
-auth header:  x-api-key: $DOKPLOY_API_TOKEN     base: $DOKPLOY_URL/api
+1. **Project + Postgres** — create a project (e.g. `tools`), add a **Postgres** database (`rallly-db`, db `rallly`, user `rallly`, your `DB_PASSWORD`), deploy it with no public port. Copy the **Internal Connection** host — that suffixed value is your `DB_HOST`.
+2. **Env** — run `make-env.sh` (step 2) and paste `rallly.env` into the application's **Environment** tab.
+3. **App** — add an **Application** `rallly`, provider **Docker**, image `lukevella/rallly:4`.
+4. **Domain** — in the **Domains** tab add your domain, container port `3000`, HTTPS via Let's Encrypt; deploy. (Mind the CDN-proxied DNS note above.)
 
-1. project.create                  { name: "tools" }                       -> projectId
-2. postgres.create                 { projectId, name: "rallly-db",
-                                      databaseName: "rallly", databaseUser: "rallly",
-                                      databasePassword: $DB_PASSWORD }       -> postgresId
-3. postgres.deploy                 { postgresId }
-   # DB_HOST = the created service's generated appName (e.g. rallly-db-pmqqwz),
-   # NOT "rallly-db". Read it back from postgres.one { postgresId }.
-4. application.create              { projectId, name: "rallly" }            -> applicationId
-5. application.saveDockerProvider { applicationId, dockerImage: "lukevella/rallly:4" }
-6. application.saveEnvironment    { applicationId, env: <contents of rallly.env> }
-7. domain.create                  { applicationId, host: $DOMAIN,
-                                     port: 3000, https: true,
-                                     certificateType: "letsencrypt" }
-8. application.deploy             { applicationId }
-```
-
-Notes for the agent:
-- Generate `rallly.env` with the `make-env.sh` above first; step 6 sends its contents. `DB_HOST` must be the value read back in step 3, not the logical name.
-- Dokploy assigns the **application** a fully random container name (e.g.
-  `app-input-haptic-bandwidth-rux8uo`), unlike the database. To find its
-  container/logs later, resolve `applicationId → appName` via `application.one`,
-  don't `grep` for "rallly".
-- After deploy, run the `verify.sh` from the next section against `$DOMAIN`.
+This is the path validated end-to-end on Hetzner; the API path above is the agent default and is pending its own clean run (#2).
 
 ## Verification
 

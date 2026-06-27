@@ -136,50 +136,58 @@ The admin panel (`/admin`) is enabled by setting `ADMIN_TOKEN`. Store it as an A
 docker run --rm -it vaultwarden/server:1.36.0 /vaultwarden hash
 ```
 
-Enter a long random password (generate one with `openssl rand -base64 32` and save it somewhere safe — this is what you'll type into `/admin`). The command prints an `ADMIN_TOKEN='$argon2id$...'` line. Keep the hash for step 3.
+Enter a long random password (generate one with `openssl rand -base64 32` and save it somewhere safe — this is what you'll type into `/admin`). The command prints an `ADMIN_TOKEN='$argon2id$...'` line. Keep the hash for step 2.
 
-### 2. Create the service in Dokploy
+### 2. Deploy via the Dokploy API
 
-1. In the Dokploy UI, create a project (e.g. `family`), then add an **Application** type service named `vaultwarden`.
-2. Set the provider to **Docker** with image `vaultwarden/server:1.36.0`. Pin the version; don't use `latest` for a password manager — you want to read release notes before upgrading.
-3. Add a persistent volume mounting to `/data` inside the container (e.g. a volume named `vaultwarden-data`). Everything Vaultwarden stores — SQLite database, attachments, RSA keys, admin config — lives in `/data`.
+This pattern is **API-first**: an agent drives the deploy over the Dokploy HTTP API using `DOKPLOY_API_TOKEN` / `DOKPLOY_URL` from [dokploy-bootstrap](dokploy-bootstrap.md) step 9. A condensed click-through fallback for humans is at the end. The call **sequence** is stable; confirm exact endpoint and field names at `$DOKPLOY_URL/api/swagger` (versioned — written against Dokploy 0.29.8; the API path is pending a clean end-to-end run, see issue #2).
 
-### 3. Set environment variables
-
-In the service's Environment tab:
+First the environment. `DOMAIN` must be the **exact** public URL including `https://`; `ADMIN_TOKEN` is the Argon2 hash from step 1:
 
 ```bash
 DOMAIN=https://vault.example.com
 ADMIN_TOKEN='$argon2id$v=19$m=65540,t=3,p=4$...'   # the hash from step 1
-SIGNUPS_ALLOWED=true            # temporarily — turned off in step 6
+SIGNUPS_ALLOWED=true            # temporarily — turned off in step 4
 SMTP_HOST=smtp.example.com
 SMTP_FROM=vault@example.com
-SMTP_PORT=587
+SMTP_PORT=587                   # prefer 587; 465/25 are blocked outbound on many VPS providers (incl. Hetzner)
 SMTP_SECURITY=starttls
 SMTP_USERNAME=vault@example.com
 SMTP_PASSWORD=your-smtp-password
 ```
 
-Notes:
+Then create, configure, and deploy:
 
-- `DOMAIN` must be the **exact** public URL including `https://`.
-- If you ever move these into a compose file instead of the env tab, escape every `$` in the Argon2 hash as `$$`.
-- SMTP is effectively required for a family setup: organization invites, email verification, and emergency access notifications all go through email. Any transactional mail provider or your own mailbox's SMTP credentials work.
+```
+auth header:  x-api-key: $DOKPLOY_API_TOKEN     base: $DOKPLOY_URL/api
 
-### 4. Expose it via your domain
+project.create                  { name: "family" }                      -> projectId
+application.create              { projectId, name: "vaultwarden" }       -> applicationId
+application.saveDockerProvider  { applicationId, dockerImage: "vaultwarden/server:1.36.0" }
+mounts.create                   { serviceId: applicationId, type: "volume",
+                                  mountPath: "/data" }   # persists db, attachments, keys
+application.saveEnvironment     { applicationId, env: <the env block above> }
+domain.create                  { applicationId, host: <your host>, port: 80,
+                                 https: true, certificateType: "letsencrypt" }
+application.deploy             { applicationId }
+```
 
-In the service's Domains tab, add `vault.example.com` with HTTPS enabled (Let's Encrypt) and container port `80` — the Vaultwarden container listens on 80 internally. Deploy the service.
+- Pin the image (`vaultwarden/server:1.36.0`) — never `latest` for a password manager; read release notes before upgrading.
+- The `/data` volume is **mandatory**: SQLite database, attachments, RSA keys, and admin config all live there, and you lose the vault on redeploy without it.
+- Container port is **80** (Vaultwarden listens on 80 internally). WebSocket live-sync runs over the same port; Traefik forwards the upgrade headers automatically.
+- If you ever move the env into a compose file, escape every `$` in the Argon2 hash as `$$`.
+- Dokploy gives the app a random container name; resolve `applicationId → appName` via `application.one` to find its logs.
+- **CDN-proxied DNS:** DNS-only during first certificate issuance, then re-proxy with SSL mode **Full (strict)**. See [dokploy-bootstrap](dokploy-bootstrap.md) step 6.
+- SMTP is effectively required: organization invites, email verification, and emergency-access notifications all go through email.
 
-WebSocket notifications (live sync between clients) run over the same port; Traefik forwards the upgrade headers automatically, no extra configuration needed.
-
-### 5. Create your account and the family organization
+### 3. Create your account and the family organization
 
 1. Open `https://vault.example.com`, create **your own** account. Use a strong master password — it cannot be recovered, only reset by deleting the account.
 2. In the web vault: **New organization** (e.g. "Family"). Create collections for shared credential groups, e.g. `Shared — Household`, `Shared — Streaming`, `Shared — Kids`.
 3. Invite family members from **Organization → Members**. Invites arrive by email (this is why SMTP matters) and expire after 5 days. Each member creates their own account with their own master password; you confirm them after they accept.
 4. Move shared credentials into collections; per-member access is controlled per collection.
 
-### 6. Lock down signups
+### 4. Lock down signups
 
 Once everyone has an account, set in the Environment tab:
 
@@ -191,7 +199,7 @@ and redeploy. Organization invites keep working (`INVITATIONS_ALLOWED` defaults 
 
 Note: settings previously saved through the `/admin` panel persist in `/data/config.json` and **override** environment variables. If a setting doesn't seem to take effect, check the admin panel.
 
-### 7. Set up emergency access
+### 5. Set up emergency access
 
 Vaultwarden supports Bitwarden's Emergency Access (enabled by default). For each adult:
 
@@ -201,11 +209,11 @@ Vaultwarden supports Bitwarden's Emergency Access (enabled by default). For each
 
 This answers "what if the server admin is hit by a bus": the vault can be recovered by family without anyone knowing your master password. Test the request flow once so both sides know what it looks like.
 
-### 8. Configure clients
+### 6. Configure clients
 
 On every device, install the official Bitwarden app or browser extension. **Before logging in**: on the login screen, open the server/region selector ("Logging in on"), choose **Self-hosted**, and enter `https://vault.example.com` as the Server URL. Then log in normally. CLI: `bw config server https://vault.example.com`.
 
-### 9. Migrate from 1Password
+### 7. Migrate from 1Password
 
 1. Export from 1Password (per vault, `.1pux` or CSV).
 2. In the Vaultwarden web vault: **Tools → Import data**, select the matching 1Password format, import into your personal vault (or directly into an organization collection for shared items).
@@ -213,7 +221,7 @@ On every device, install the official Bitwarden app or browser extension. **Befo
 4. Have each family member do the same with their own export.
 5. Only after a week or two of real use: delete the 1Password data and cancel the subscription.
 
-### 10. Automate backups
+### 8. Automate backups
 
 Back up the SQLite database with SQLite's online backup (never a plain `cp` of a live database), plus the attachments and keys. Vaultwarden ships a built-in backup command. On the server, create `/usr/local/bin/vaultwarden-backup.sh`:
 
@@ -239,37 +247,16 @@ chmod +x /usr/local/bin/vaultwarden-backup.sh
 
 Then get the archives **off the server** — sync `/var/backups/vaultwarden` to external storage (rclone to any S3/Backblaze/Drive target, or a restic repository). A backup on the same disk as the database is not a backup. The archive contains your encrypted vault plus `config.json` (which holds the admin token hash) — treat it as sensitive even though vault items are ciphertext.
 
-## Agent-executable deploy (Dokploy API)
+### Manual UI fallback
 
-Steps 2–4 are written as Dokploy UI clicks for a human; an agent should drive the
-create/configure/deploy over the Dokploy API instead. Assumes `DOKPLOY_API_TOKEN`
-and `DOKPLOY_URL` from [dokploy-bootstrap](dokploy-bootstrap.md) step 9. The
-sequence is stable; confirm exact endpoint and field names against
-`$DOKPLOY_URL/api/swagger` (versioned — tested against Dokploy 0.29.8).
+No API token, or prefer clicking? The deploy (step 2) in the Dokploy UI, condensed:
 
-```
-auth header:  x-api-key: $DOKPLOY_API_TOKEN     base: $DOKPLOY_URL/api
+1. **Service** — create a project (e.g. `family`), add an **Application** `vaultwarden`, provider **Docker**, image `vaultwarden/server:1.36.0`.
+2. **Volume** — add a persistent volume mounted at `/data` (mandatory — that's the whole vault).
+3. **Env** — paste the env block from step 2 into the **Environment** tab.
+4. **Domain** — in the **Domains** tab add your host, container port `80`, HTTPS via Let's Encrypt; deploy. (Mind the CDN-proxied DNS note in step 2.)
 
-1. project.create                  { name: "family" }                      -> projectId
-2. application.create              { projectId, name: "vaultwarden" }       -> applicationId
-3. application.saveDockerProvider  { applicationId,
-                                     dockerImage: "vaultwarden/server:1.36.0" }
-4. mounts.create                   { serviceId: applicationId, type: "volume",
-                                     mountPath: "/data", ... }    # persists /data
-5. application.saveEnvironment     { applicationId, env: <the env block from step 3> }
-                                   # remember DOMAIN=https://${DOMAIN}, ADMIN_TOKEN
-                                   # is the argon2 hash from step 1
-6. domain.create                   { applicationId, host: $DOMAIN,
-                                     port: 80, https: true,
-                                     certificateType: "letsencrypt" }
-7. application.deploy              { applicationId }
-```
-
-Steps 1 (generate admin token), 5–9 (web-vault account/org/clients/migration) stay
-human — they're inherently GUI/client actions. As with the database in
-[scheduling-tool](scheduling-tool.md), Dokploy gives the application a random
-container name; resolve `applicationId → appName` via `application.one` to find its
-logs.
+The web-vault actions (account, organization, clients, migration — steps 3, 6, 7) are inherently GUI/client work regardless of path.
 
 ## Verification
 
@@ -302,7 +289,7 @@ real clients and a real second person. Do these by hand:
 - **`$` escaping in the Argon2 hash.** The PHC hash is full of `$` characters. In Dokploy's env tab a single-quoted value is fine, but in a docker-compose file each `$` must be doubled (`$$`) or compose will try variable interpolation and the token silently won't match.
 - **`config.json` overrides environment variables.** Anything ever saved via the admin panel persists in `/data/config.json` and wins over env vars after restarts. If an env change seems ignored, that's why.
 - **Live-copying SQLite corrupts backups.** A `cp` of `db.sqlite3` while the server runs can produce a silently corrupt copy. Always go through `/vaultwarden backup` (built in since 1.32.1) or `sqlite3 ... ".backup ..."`. When restoring, delete any `db.sqlite3-wal` file alongside the restored database first.
-- **Master passwords are unrecoverable.** No SMTP reset emails will save a forgotten master password. Emergency Access (step 7) is the designed recovery path — set it up before you need it.
+- **Master passwords are unrecoverable.** No SMTP reset emails will save a forgotten master password. Emergency Access (step 5) is the designed recovery path — set it up before you need it.
 - **Don't use the `latest` tag.** Read the release notes before upgrading a password manager. Vaultwarden releases occasionally include security fixes you want promptly, and rarely, behavior changes (e.g. 2FA remember tokens were invalidated in 1.35.5) you want to know about.
 
 ## Maintenance notes
