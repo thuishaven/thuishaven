@@ -160,6 +160,16 @@ matches the live domain exactly.
 - **Best-effort geography.** Sparse regions under-fill, and "from" reflects
   MusicBrainz's area tag (which can be residence/citizenship, not birthplace).
 
+## Optional: a public demo gallery
+
+geo-music ships an opt-in, login-free gallery so you can show example journeys to
+anyone — the map, timeline and fly-through render from saved data, and the
+playlist plays via Spotify's embed, so **no visitor needs to connect Spotify**
+(handy given the 25-user cap). Curate routes in `demo-routes.json`, run
+`npm run demos` (with a cached token) to build each as a *public* playlist, and
+set `ENABLE_DEMO_GALLERY=true`. The generated playlists are yours and are not
+shipped in the image, so each operator curates their own.
+
 ## Maintenance notes
 
 - **Updates**: redeploy from the repo (Dokploy rebuild). No database to migrate.
