@@ -94,6 +94,7 @@ assertions:
 gotchas:
   - "Bare `tailscale up` blocks on an interactive browser login — on a headless server or an agent-driven run it hangs/loops; use `tailscale up --authkey=...` with a pre-generated key instead"
   - "The installer runs `docker swarm leave --force` unconditionally — it will tear down existing Swarm membership on the machine"
+  - "The installer pins an exact Docker version; on a just-released Ubuntu whose codename Docker's apt repo doesn't carry yet, Docker install fails and Swarm init aborts — install Docker yourself first (`curl -fsSL https://get.docker.com | sh`), then re-run the installer (it skips Docker when present)"
   - "Installation aborts if anything listens on ports 80, 443, or 3000 — stop existing web servers first"
   - "The first person to open port 3000 creates the admin account — create yours immediately after install"
   - "UFW does not block Docker-published ports; use your provider's firewall or ufw-docker to actually close port 3000"
@@ -128,7 +129,9 @@ All commands run as root (or prefix with `sudo`) over SSH.
 ### 1. Pre-flight checks
 
 ```bash
-# OS: Ubuntu 24.04 LTS or 22.04 LTS recommended (older LTS releases are supported)
+# OS: Ubuntu 24.04 LTS or 22.04 LTS recommended (older LTS releases are supported).
+# A just-released Ubuntu (e.g. 26.04 right after launch) may have no Docker apt repo
+# yet — the installer's Docker step can fail; see step 3 for the bring-your-own-Docker path.
 lsb_release -a
 
 # Resources: minimum 2 GB RAM and 30 GB free disk
@@ -189,6 +192,18 @@ If the installer errors with a message about not finding a private IP (common on
 export ADVERTISE_ADDR=$(curl -4s ifconfig.me)   # or your private IP if the VPS has one
 curl -sSL https://dokploy.com/install.sh | sh
 ```
+
+**If the installer fails to install Docker** — common on a just-released Ubuntu whose codename Docker's apt repo doesn't carry yet, because the installer pins an exact Docker version — install Docker yourself first, then re-run. The installer detects the existing Docker and skips straight to Swarm and the services:
+
+```bash
+# Docker's official convenience script installs the current stable build for your OS
+curl -fsSL https://get.docker.com | sh
+docker --version            # confirm it's installed and the daemon is up
+
+curl -sSL https://dokploy.com/install.sh | sh   # re-run; skips Docker, proceeds to Swarm
+```
+
+If even `get.docker.com` has no build for your release, prefer the latest Ubuntu LTS Docker officially supports (24.04 at time of writing) over the newest release.
 
 What it does, so nothing is a surprise: installs Docker if missing, initializes a single-node Docker Swarm, creates the `dokploy-network` overlay network, creates `/etc/dokploy`, and starts four things — Postgres 16 and Redis 7 (Dokploy's own state), the Dokploy UI (port 3000), and Traefik (ports 80 and 443).
 
